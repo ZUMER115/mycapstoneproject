@@ -1,0 +1,39 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+:root {
+  --bg: #ffffff;
+  --text: #111111;
+  --card: #f7f7f7;
+}
+:root[data-theme="dark"] {
+  --bg: #0f1115;
+  --text: #eaeef3;
+  --card: #1a1f29;
+}
+.deadline-row {
+  border-radius: 8px;
+  transition: background-color .12s ease, box-shadow .12s ease;
+}
+.deadline-row:hover {
+  background: #eaf2ff;
+  box-shadow: 0 0 0 1px #dbeafe inset;
+}
+.deadline-row:focus-within {
+  background: #eaf2ff;
+  box-shadow: 0 0 0 2px #bfdbfe inset;
+}
+
+html, body, #root { height: 100%; }
+body { background: var(--bg); color: var(--text); }
+.card { background: var(--card); color: var(--text); }
