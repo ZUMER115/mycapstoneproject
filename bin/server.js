@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const authRoutes = require('./routes/auth');
+const deadlineRoutes = require('./routes/deadlines');
 
 const app = express();
 
@@ -11,6 +12,8 @@ app.use(express.json()); // parse JSON requests
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api', deadlineRoutes);
+app.use('/api/profile', require('./routes/profile'));
 
 // Default route
 app.get('/', (req, res) => {
