@@ -10,7 +10,12 @@ const app = express();
 
 // --- CORS (allow Vercel and localhost) ---
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
-const allowedOrigins = [FRONTEND_URL, 'http://localhost:3000'];
+
+const allowedOrigins = [
+  FRONTEND_URL,
+  'http://localhost:3000',
+  'https://mycapstoneproject-tbo9.vercel.app'  // ✅ your Vercel frontend
+];
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -23,6 +28,10 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Optional but good to keep
+app.options('*', cors());
+
 
 // Optional: preflight handling
 app.options('*', cors());
