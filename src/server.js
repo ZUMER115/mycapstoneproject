@@ -29,10 +29,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Optional but good to keep
-app.options('*', cors());
-
-
 // Optional: preflight handling
 app.options('*', cors());
 
