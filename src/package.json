@@ -15,7 +15,8 @@
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.19.1"
+    "mongoose": "^8.19.1",
+    "uuid": "^13.0.0"
   },
   "keywords": [],
   "author": "",
