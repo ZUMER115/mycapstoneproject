@@ -1,12 +1,19 @@
+// src/config/db.js
 const { Pool } = require('pg');
-require('dotenv').config();
+
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error('DATABASE_URL is missing');
+}
 
 const pool = new Pool({
-  user: process.env.DB_USER,
-  host: 'localhost',
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASS,
-  port: 5432,
+  connectionString,
+  ssl: {
+    rejectUnauthorized: false, // required by many hosted PG providers
+  },
 });
 
-module.exports = pool;
+// small helper to run queries
+const query = (text, params) => pool.query(text, params);
+
+module.exports = { pool, query };
