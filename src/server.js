@@ -10,16 +10,20 @@ const app = express();
 
 // --- CORS (allow Vercel and localhost) ---
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
-
 const allowedOrigins = [
   FRONTEND_URL,
   'http://localhost:3000',
-  'https://mycapstoneproject-tbo9.vercel.app'  // ✅ your Vercel frontend
+  'https://mycapstoneproject-tbo9.vercel.app'
 ];
 
+// allow vercel preview URLs dynamically
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app')
+    ) {
       return callback(null, true);
     }
     return callback(new Error(`CORS blocked: ${origin}`));
@@ -29,8 +33,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Optional: preflight handling
 app.options('*', cors());
+
 
 
 app.use(express.json());
