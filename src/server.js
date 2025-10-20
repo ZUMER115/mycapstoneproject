@@ -3,18 +3,45 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const { query } = require('./config/db'); // ✅ add: pg pool helper, used by authController
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 
-// --- CORS (single declaration) ---
+// --- CORS (allow Vercel and localhost) ---
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
-app.use(cors({ origin: FRONTEND_URL, credentials: true }));
+const allowedOrigins = [FRONTEND_URL, 'http://localhost:3000'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS blocked: ${origin}`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Optional: preflight handling
+app.options('*', cors());
+
 
 app.use(express.json());
 
 // --- health checks ---
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
+// --- Postgres health check ---
+app.get('/health/pg', async (_req, res) => {
+  try {
+    await query('SELECT 1');
+    res.json({ ok: true, pg: 'up' });
+  } catch (err) {
+    res.status(500).json({ ok: false, pg: 'down', error: err?.message || String(err) });
+  }
+});
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 app.get('/health/db', (_req, res) => {
   const stateNames = ['disconnected', 'connected', 'connecting', 'disconnecting', 'uninitialized'];
@@ -42,7 +69,15 @@ app.use('/api/timeline', timelineRoutes);
 // --- start after DB connect ---
 const PORT = process.env.PORT || 5000;
 const uri  = process.env.MONGO_URI;
-
+// POSTGRES health (add-only)
+app.get('/health/pg', async (_req, res) => {
+  try {
+    await query('SELECT 1');
+    res.json({ ok: true, pg: 'up' });
+  } catch (e) {
+    res.status(500).json({ ok: false, pg: 'down', error: e?.message || String(e) });
+  }
+});
 (async () => {
   try {
     if (!uri) throw new Error('MONGO_URI is missing. Check your .env');
