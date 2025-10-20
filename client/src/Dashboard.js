@@ -2,6 +2,8 @@
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+const API = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+console.log('API:', API);
 
 // ---- Recommended logic helpers ----
 const RECO_TARGET        = 7;
@@ -354,7 +356,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (!userEmail) return;
     (async () => {
-      const r = await fetch(`http://localhost:5000/api/pins?email=${encodeURIComponent(userEmail)}`);
+      const r = await fetch(`${API}/api/pins?email=${encodeURIComponent(userEmail)}`);
       const data = await r.json();
       if (r.ok && Array.isArray(data.pins)) {
         setPinnedKeys(new Set(data.pins.map(p => p.key)));
@@ -371,7 +373,7 @@ const Dashboard = () => {
         if (decoded?.email) setUserEmail(decoded.email);
       } catch {}
     }
-    fetch('http://localhost:5000/api/deadlines')
+    fetch(`${API}/api/deadlines`)
       .then(r => r.json())
       .then(data => setDeadlines(Array.isArray(data) ? data : []))
       .catch(() => {});
@@ -382,8 +384,9 @@ const Dashboard = () => {
     if (!email) return;
     setLoadingEvents(true);
     try {
-      const list = await fetch(`http://localhost:5000/api/events?email=${encodeURIComponent(email)}`).then(r => r.ok ? r.json() : []);
-      const arr = Array.isArray(list) ? list : [];
+     const list = await fetch(`${API}/api/events?email=${encodeURIComponent(email)}`)
+                 .then(r => (r.ok ? r.json() : []));
+     const arr = Array.isArray(list) ? list : [];
       setUserEvents(arr);
       // auto-pin all personal events locally
       setPinnedKeys(prev => {
@@ -401,7 +404,7 @@ const Dashboard = () => {
   async function togglePinOnServer(payload) {
     if (!userEmail) return alert('Please log in first.');
 
-    const res = await fetch('http://localhost:5000/api/pins/toggle', {
+    const res = await fetch(`${API}/api/pins/toggle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: userEmail, ...payload })
@@ -680,7 +683,7 @@ const ContactsCard = () => {
     if (!mongoId) return;
     if (!window.confirm('Delete this personal event?')) return;
     try {
-      await fetch(`http://localhost:5000/api/events/${mongoId}`, { method: 'DELETE' });
+      await fetch(`${API}/api/events/${mongoId}`, { method: 'DELETE' });
       await refreshUserEvents(userEmail);
       setPinnedKeys(prev => { const n = new Set(prev); n.delete(key); return n; });
     } catch {
@@ -691,7 +694,7 @@ const ContactsCard = () => {
   // replace the whole function with this payload version
   async function syncPinsToServer(email, pinsPayload) {
     if (!email) return;
-    const res = await fetch('http://localhost:5000/api/pins/set', {
+    const res = await fetch(`${API}/api/pins/set`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, pins: pinsPayload })
@@ -717,7 +720,7 @@ const ContactsCard = () => {
 
     setSaving(true);
     try {
-      const res = await fetch('http://localhost:5000/api/events', {
+      const res = await fetch(`${API}/api/events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

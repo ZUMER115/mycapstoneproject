@@ -68,6 +68,10 @@ function parseRange(text) {
   if (!isNaN(tryDate.getTime())) { const e = new Date(tryDate); e.setDate(e.getDate() + 1); return { start: tryDate, end: e }; }
   return null;
 }
+// add near the top of routes/deadlines.js
+router.get('/deadlines/ping', (_req, res) => {
+  res.json({ ok: true, router: 'deadlines' });
+});
 
 /* ---------- existing JSON endpoint ---------- */
 router.get('/deadlines', async (req, res) => {
