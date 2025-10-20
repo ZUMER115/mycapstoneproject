@@ -9,12 +9,17 @@ const Login = ({ onLogin }) => {
   const [status, setStatus] = useState('idle');
   const [showPwd, setShowPwd] = useState(false);
 
-  const handleLogin = async (e) => {
+   const handleLogin = async (e) => {
     e.preventDefault();
     setStatus('loading');
     setMessage('');
     try {
-      const res = await fetch('http://localhost:5000/api/auth/login', {
+
+      const base = process.env.REACT_APP_API_URL;
+     if (!base) {
+       throw new Error('REACT_APP_API_URL is not set');
+     }
+     const res = await fetch(`${base}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -40,6 +45,7 @@ const Login = ({ onLogin }) => {
     background:
       'radial-gradient(700px 700px at 100% 0%, rgba(79,70,229,.10) 0%, rgba(79,70,229,0) 55%), linear-gradient(180deg,#f3f4f6 0%, #ffffff 60%)'
   };
+console.log('API URL:', process.env.REACT_APP_API_URL);
 
   const card = {
     width: 'min(440px, 92vw)',
