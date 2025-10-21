@@ -5,7 +5,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useMemo, useRef, useState } from 'react';
-
+const API = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 /* ===== helpers ===== */
 // Render event text so it always clips with an ellipsis inside the box
 function renderEventContent(arg) {
@@ -14,6 +14,25 @@ function renderEventContent(arg) {
   span.textContent = arg.event.title || '';
   return { domNodes: [span] };
 }
+
+// minimal helpers for pin keys
+const toYMD = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function toISODateSafe(raw){
+  if(!raw) return null;
+  const s = String(raw).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  let m = s.match(/^(\w+)\s(\d{1,2}),\s*(\d{4})$/);
+  if (m) { const map={january:0,jan:0,february:1,feb:1,march:2,mar:2,april:3,apr:3,may:4,june:5,jun:5,july:6,jul:6,august:7,aug:7,september:8,sep:8,sept:8,october:9,oct:9,november:10,nov:10,december:11,dec:11};
+           const mi=map[m[1].toLowerCase()]; if(mi==null) return null; const d=new Date(+m[3],mi,+m[2]); return isNaN(d)?null:toYMD(d); }
+  m = s.match(/^([A-Za-z.]+)\s(\d{1,2})\s*[-–]\s*([A-Za-z.]+)?\s*(\d{1,2}),\s*(\d{4})$/);
+  if (m) return toISODateSafe(`${m[1]} ${m[2]}, ${m[5]}`);
+  const d = new Date(s); return isNaN(d)?null:toYMD(d);
+}
+const keyForScraped = (item) => {
+  const iso = toISODateSafe(item.date || item.dateText || item.text || item.event) || '';
+  const title = (item.event || item.title || '').toLowerCase().slice(0,80);
+  return `scr|${iso}|${title}`;
+};
 
 
 const MONTHS = [
@@ -121,7 +140,7 @@ export default function CalendarPage() {
   // track when we should re-read localStorage pins
   const [pinsStamp, setPinsStamp] = useState(0);
   useEffect(() => {
-    const onStorage = (e) => { if (e.key === 'pinnedDeadlines') setPinsStamp(s => s + 1); };
+    const onStorage = (e) => { if (e.key === 'pinnedKeys') setPinsStamp(s => s + 1); };
     const onVisible = () => setPinsStamp(s => s + 1);
     window.addEventListener('storage', onStorage);
     document.addEventListener('visibilitychange', onVisible);
@@ -148,7 +167,7 @@ export default function CalendarPage() {
 
   // scraped deadlines
   useEffect(() => {
-    fetch('http://localhost:5000/api/deadlines')
+    fetch(`${API}/api/deadlines`)
       .then(res => res.ok ? res.json() : [])
       .then(data => setDeadlines(Array.isArray(data) ? data : []))
       .catch(() => setDeadlines([]))
@@ -158,7 +177,7 @@ export default function CalendarPage() {
   // personal events
   useEffect(() => {
     if (!email) return;
-    fetch(`http://localhost:5000/api/events?email=${encodeURIComponent(email)}`)
+    fetch(`${API}/api/events?email=${encodeURIComponent(email)}`)
       .then(r => r.ok ? r.json() : [])
       .then(list => setUserEvents(Array.isArray(list) ? list : []))
       .catch(() => setUserEvents([]));
@@ -166,7 +185,7 @@ export default function CalendarPage() {
 
   // ALWAYS re-read pins when pinsStamp changes (and when deadlines change)
   const pinnedSet = useMemo(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('pinnedDeadlines') || '[]')); }
+    try { return new Set(JSON.parse(localStorage.getItem('pinnedKeys') || '[]')); }
     catch { return new Set(); }
   }, [deadlines, pinsStamp]);
 
@@ -181,7 +200,7 @@ export default function CalendarPage() {
       const parsed = parseDateRange(item.date || item.dateText || item.text || title);
       if (!parsed) return;
 
-      const pinned = pinnedSet.has(idx);
+      const pinned = pinnedSet.has(keyForScraped(item));
 
       const displayDate = displayRange(parsed.start, parsed.end);
       const base = { title, category, dateText: displayDate, _start: parsed.start, _end: parsed.end, pinned };
@@ -266,7 +285,7 @@ export default function CalendarPage() {
 
     setSaving(true);
     try {
-      const res = await fetch('http://localhost:5000/api/events', {
+      const res = await fetch(`${API}/api/events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -286,7 +305,7 @@ export default function CalendarPage() {
         return;
       }
 
-      const next = await fetch(`http://localhost:5000/api/events?email=${encodeURIComponent(email)}`).then(x => x.json());
+      const next = await fetch(`${API}/api/events?email=${encodeURIComponent(email)}`).then(x => x.json());
       setUserEvents(Array.isArray(next) ? next : []);
 
       setAddOpen(false);
@@ -324,7 +343,7 @@ export default function CalendarPage() {
 
 
         <a
-          href="http://localhost:5000/api/deadlines/ics"
+          href={`${API}/api/deadlines/ics`}
           style={{ marginLeft: 'auto', padding: '0.5rem 0.75rem', border: '1px solid #ccc', borderRadius: 6, textDecoration: 'none' }}
         >
           Download .ics
@@ -537,7 +556,7 @@ export default function CalendarPage() {
             onClick={async () => {
               if (!window.confirm('Delete this personal event?')) return;
               try {
-                await fetch(`http://localhost:5000/api/events/${selected.mongoId}`, { method: 'DELETE' });
+                await fetch(`${API}/api/events/${selected.mongoId}`, { method: 'DELETE' });
                 const next = await fetch(`http://localhost:5000/api/events?email=${encodeURIComponent(email)}`).then(x => x.json());
                 setUserEvents(Array.isArray(next) ? next : []);
                 setSelected(null);
