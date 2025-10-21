@@ -1,7 +1,7 @@
 // src/pages/SearchPage.js
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useMemo, useRef, useState } from 'react';
-
+const API = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 /* ===== helpers copied from Dashboard ===== */
 const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
@@ -69,18 +69,32 @@ const keyForScraped = (item) => {
   return `scr|${iso}|${title}`;
 };
 
+// build full payload like Dashboard
+function buildScrapedPayload(item) {
+  const iso = toISODateSafe(item.date || item.dateText || item.text || item.event) || '';
+  const title = (item.event || item.title || '').toLowerCase().slice(0, 80);
+  return {
+    key: `scr|${iso}|${title}`,
+    event: item.event || item.title || '',
+    category: (item.category || 'other').toLowerCase(),
+    dateISO: iso,
+    source: 'scraped'
+  };
+}
+
 // optional sync, mirrors Dashboard
-async function syncPinsToServer(email, pinsPayload) {
+ async function syncPinsToServer(email, pinsPayload) {
   try {
-    await fetch('http://localhost:5000/api/pins', {
+    await fetch(`${API}/api/pins/set`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, pins: pinsPayload })
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ email, pins: pinsPayload })
     });
   } catch (e) {
-    console.warn('pin sync failed:', e?.message || e);
-  }
-}
+     console.warn('pin sync failed:', e?.message || e);
+   }
+ }
+
 
 export default function SearchPage() {
   const [deadlines, setDeadlines] = useState([]);
@@ -104,7 +118,7 @@ const [toastSeq, setToastSeq] = useState(0); // forces animation to replay
 
   // load scraped deadlines
   useEffect(() => {
-    fetch('http://localhost:5000/api/deadlines')
+    fetch(`${API}/api/deadlines`)
       .then(r => r.json())
       .then(data => setDeadlines(Array.isArray(data) ? data : []))
       .catch(() => {});
@@ -131,19 +145,13 @@ const [toastSeq, setToastSeq] = useState(0); // forces animation to replay
     localStorage.setItem('pinnedKeys', JSON.stringify([...pinnedKeys]));
     // optional: push only currently visible/pinned scraped to server for this page
     if (userEmail) {
-      const payload = [...pinnedKeys]
-        .filter(k => k.startsWith('scr|'))
-        .map(k => {
-          // find matching item to send a useful payload
-          const found = deadlines.find(d => keyForScraped(d) === k);
-          return found ? {
-            source: 'scraped',
-            event: found.event || found.title || '',
-            date: found.date || '',
-            category: found.category || 'other'
-          } : null;
-        })
-        .filter(Boolean);
+ const payload = [...pinnedKeys]
+  .filter(k => k.startsWith('scr|'))
+  .map(k => {
+     const found = deadlines.find(d => keyForScraped(d) === k);
+     return found ? buildScrapedPayload(found) : null;
+   })
+   .filter(Boolean);
       syncPinsToServer(userEmail, payload);
     }
   }, [pinnedKeys, userEmail, deadlines]);
