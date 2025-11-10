@@ -241,7 +241,7 @@ async function fetchAllDeadlines() {
   deadlines.sort((a, b) => a.dateObj - b.dateObj);
   return deadlines.map(({ event, date, category }) => ({ event, date, category }));
 }
-const Deadline = require('../../models/Deadline');
+const Deadline = require('../models/Deadline');
 
 /**
  * Returns cached deadlines if they exist; otherwise scrapes and caches new ones.
