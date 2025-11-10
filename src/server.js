@@ -15,6 +15,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'https://mycapstoneproject-tbo9.vercel.app'
 ];
+const { getOrPopulateDeadlines } = require('./utils/deadlineScraper');  // ⬅️ Add this near your other imports
 
 // allow vercel preview URLs dynamically
 app.use(cors({
@@ -93,6 +94,9 @@ app.get('/health/pg', async (_req, res) => {
     console.log('🔌 Connecting to MongoDB…');
     await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000, socketTimeoutMS: 20000 });
     console.log('✅ MongoDB connected');
+
+    // ⬇️ Add this one line to populate deadlines once
+    await getOrPopulateDeadlines();
 
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`API listening on ${PORT}`);

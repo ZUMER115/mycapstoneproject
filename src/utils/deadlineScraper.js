@@ -32,6 +32,9 @@ const MONTHS = {
   Oct: 'October', Nov: 'November', Dec: 'December'
 };
 
+
+
+
 // Normalize common abbrevs (e.g., "Sept." -> "September")
 function normalizeMonths(s) {
   return String(s || '').replace(
@@ -238,5 +241,25 @@ async function fetchAllDeadlines() {
   deadlines.sort((a, b) => a.dateObj - b.dateObj);
   return deadlines.map(({ event, date, category }) => ({ event, date, category }));
 }
+const Deadline = require('../models/Deadline');
 
-module.exports = { fetchAllDeadlines };
+/**
+ * Returns cached deadlines if they exist; otherwise scrapes and caches new ones.
+ */
+async function getOrPopulateDeadlines() {
+  const existing = await Deadline.find({});
+  if (existing.length > 0) {
+    console.log(`📦 Using ${existing.length} cached deadlines`);
+    return existing;
+  }
+
+  console.log('⚙️ No deadlines in DB — scraping fresh data...');
+  const scraped = await fetchAllDeadlines();
+  if (scraped?.length) {
+    await Deadline.insertMany(scraped);
+    console.log(`✅ Inserted ${scraped.length} deadlines into MongoDB`);
+  }
+  return scraped;
+}
+
+module.exports = { fetchAllDeadlines, getOrPopulateDeadlines };
