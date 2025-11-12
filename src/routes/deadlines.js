@@ -140,7 +140,7 @@ router.get('/deadlines/ics-test', (req, res) => {
   res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="sparely-test.ics"');
   res.send(value);
-});getOrPopulateDeadli
+});
 
 
 
