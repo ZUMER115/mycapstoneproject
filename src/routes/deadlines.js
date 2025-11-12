@@ -76,7 +76,7 @@ router.get('/deadlines/ping', (_req, res) => {
 /* ---------- existing JSON endpoint ---------- */
 router.get('/deadlines', async (req, res) => {
   try {
-    const deadlines = await fetchAllDeadlines();
+    const deadlines = await getOrPopulateDeadlines();
 
     // 1) drop blanks just in case (title/category guards)
     const cleaned = (deadlines || []).filter(d =>
@@ -140,7 +140,7 @@ router.get('/deadlines/ics-test', (req, res) => {
   res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="sparely-test.ics"');
   res.send(value);
-});
+});getOrPopulateDeadli
 
 
 
@@ -148,7 +148,7 @@ router.get('/deadlines/ics-test', (req, res) => {
 router.get('/deadlines/ics', async (req, res) => {
   try {
     const { createEvents } = require('ics');
-    const { fetchAllDeadlines } = require('../utils/deadlineScraper');
+    const { getOrPopulateDeadlines } = require('../utils/deadlineScraper');
 
     const deadlines = await fetchAllDeadlines();
 
