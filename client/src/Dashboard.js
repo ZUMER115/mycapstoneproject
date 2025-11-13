@@ -379,34 +379,27 @@ useEffect(() => {
   const url = `${API}/api/deadlines`;
   console.log('[Dashboard] fetching deadlines from', url);
 
-  fetch(url)
-    .then(async (r) => {
-      console.log('[Dashboard] /api/deadlines status:', r.status);
+fetch(url)
+  .then(async (r) => {
+    console.log('[Dashboard] /api/deadlines status:', r.status);
+    const text = await r.text();
+    console.log('[Dashboard] raw response text:', text.slice(0, 200));
+    
+    let json;
+    try { json = JSON.parse(text); }
+    catch (e) {
+      console.error('[Dashboard] JSON parse failed:', e);
+      return setDeadlines([]);
+    }
 
-      const text = await r.text();
-      console.log('[Dashboard] raw response length:', text.length);
+    console.log('[Dashboard] parsed JSON:', json);
+    setDeadlines(Array.isArray(json) ? json : []);
+  })
+  .catch((err) => {
+    console.error('[Dashboard] FETCH FAILED (likely CORS or network):', err);
+    setDeadlines([]);
+  });
 
-      let json;
-      try {
-        json = JSON.parse(text);
-      } catch (e) {
-        console.error('[Dashboard] JSON parse error:', e, 'body snippet:', text.slice(0, 200));
-        setDeadlines([]);
-        return;
-      }
-
-      console.log(
-        '[Dashboard] parsed response:',
-        Array.isArray(json) ? `array length=${json.length}` : `type=${typeof json}`,
-        Array.isArray(json) && json[0] ? 'first keys=' + Object.keys(json[0]).join(',') : ''
-      );
-
-      setDeadlines(Array.isArray(json) ? json : []);
-    })
-    .catch((err) => {
-      console.error('[Dashboard] fetch /api/deadlines FAILED:', err);
-      setDeadlines([]);
-    });
 }, []);
 
 
