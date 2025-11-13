@@ -107,11 +107,28 @@ router.get('/deadlines', async (req, res) => {
     }
 
     // 3) (optional) annotate the title with merged sessions to make it clear
-    const deduped = Array.from(map.values()).map(x => {
-      const sessions = Array.from(x._sessions || []);
-      const tag = sessions.length ? ` (${sessions.join('/')})` : '';
-      return { event: x.event + tag, date: x.date, category: x.category };
-    });
+const deduped = Array.from(map.values()).map(x => {
+  const sessions = Array.from(x._sessions || []);
+  const tag = sessions.length ? ` (${sessions.join('/')})` : '';
+
+  // Use the same logic as ICS: derive a concrete date
+  const range = parseRange(x.date || x.dateText || x.text || x.event);
+  let dateISO = null;
+  if (range && range.start instanceof Date && !isNaN(range.start)) {
+    const s  = range.start;
+    const yy = s.getFullYear();
+    const mm = String(s.getMonth() + 1).padStart(2, '0');
+    const dd = String(s.getDate()).padStart(2, '0');
+    dateISO  = `${yy}-${mm}-${dd}`;   // e.g. "2025-01-06"
+  }
+
+  return {
+    event: x.event + tag,
+    date: dateISO,                   // <-- now the frontend can parse this
+    category: x.category || 'other'
+  };
+});
+
 
     res.json(deduped);
   } catch (err) {
