@@ -1,7 +1,7 @@
 // src/routes/deadlines.js (CommonJS)
 const express = require('express');
 const { createEvents } = require('ics');
-const { fetchAllDeadlines } = require('../utils/deadlineScraper');
+const { fetchAllDeadlines, getOrPopulateDeadlines } = require('../utils/deadlineScraper');
 const router = express.Router();
 
 // Put these small helpers near the top of the file (below other helpers is fine)
@@ -150,7 +150,7 @@ router.get('/deadlines/ics', async (req, res) => {
     const { createEvents } = require('ics');
     const { getOrPopulateDeadlines } = require('../utils/deadlineScraper');
 
-    const deadlines = await fetchAllDeadlines();
+    const deadlines = await getOrPopulateDeadlines();
 
     const events = [];
     let skipped = 0;
