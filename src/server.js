@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const { query } = require('./config/db'); // ✅ add: pg pool helper, used by authController
+console.log('🚀 Sparely server.js starting up!');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
