@@ -111,23 +111,16 @@ const deduped = Array.from(map.values()).map(x => {
   const sessions = Array.from(x._sessions || []);
   const tag = sessions.length ? ` (${sessions.join('/')})` : '';
 
-  // Use the same logic as ICS: derive a concrete date
-  const range = parseRange(x.date || x.dateText || x.text || x.event);
-  let dateISO = null;
-  if (range && range.start instanceof Date && !isNaN(range.start)) {
-    const s  = range.start;
-    const yy = s.getFullYear();
-    const mm = String(s.getMonth() + 1).padStart(2, '0');
-    const dd = String(s.getDate()).padStart(2, '0');
-    dateISO  = `${yy}-${mm}-${dd}`;   // e.g. "2025-01-06"
-  }
+  // Grab the original date string from whichever field it lives on
+  const rawDate = x.date || x.dateText || x.text || x.event;
 
   return {
     event: x.event + tag,
-    date: dateISO,                   // <-- now the frontend can parse this
+    date: rawDate,                 // 👈 raw string; frontend will parse it
     category: x.category || 'other'
   };
 });
+
 
 
     res.json(deduped);
