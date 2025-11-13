@@ -60,6 +60,11 @@ app.get('/health/db', (_req, res) => {
 });
 app.get('/', (_req, res) => res.send('Sparely backend is running'));
 
+
+app.use((req, _res, next) => {
+  console.log('➡️ Incoming:', req.method, req.url);
+  next();
+});
 // --- routes ---
 const authRoutes        = require('./routes/auth');
 const deadlineRoutes    = require('./routes/deadlines');
