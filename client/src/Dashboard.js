@@ -365,19 +365,50 @@ const Dashboard = () => {
   }, [userEmail]);
 
   // load scraped deadlines + user email
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const decoded = jwtDecode(token);
-        if (decoded?.email) setUserEmail(decoded.email);
-      } catch {}
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    try {
+      const decoded = jwtDecode(token);
+      if (decoded?.email) setUserEmail(decoded.email);
+    } catch (e) {
+      console.error('[Dashboard] jwtDecode failed:', e);
     }
-    fetch(`${API}/api/deadlines`)
-      .then(r => r.json())
-      .then(data => setDeadlines(Array.isArray(data) ? data : []))
-      .catch(() => {});
-  }, []);
+  }
+
+  const url = `${API}/api/deadlines`;
+  console.log('[Dashboard] fetching deadlines from', url);
+
+  fetch(url)
+    .then(async (r) => {
+      console.log('[Dashboard] /api/deadlines status:', r.status);
+
+      const text = await r.text();
+      console.log('[Dashboard] raw response length:', text.length);
+
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch (e) {
+        console.error('[Dashboard] JSON parse error:', e, 'body snippet:', text.slice(0, 200));
+        setDeadlines([]);
+        return;
+      }
+
+      console.log(
+        '[Dashboard] parsed response:',
+        Array.isArray(json) ? `array length=${json.length}` : `type=${typeof json}`,
+        Array.isArray(json) && json[0] ? 'first keys=' + Object.keys(json[0]).join(',') : ''
+      );
+
+      setDeadlines(Array.isArray(json) ? json : []);
+    })
+    .catch((err) => {
+      console.error('[Dashboard] fetch /api/deadlines FAILED:', err);
+      setDeadlines([]);
+    });
+}, []);
+
 
   // load personal events
   async function refreshUserEvents(email) {
