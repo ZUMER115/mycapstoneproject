@@ -247,19 +247,34 @@ const Deadline = require('../models/Deadlines.js');
  * Returns cached deadlines if they exist; otherwise scrapes and caches new ones.
  */
 async function getOrPopulateDeadlines() {
-  const existing = await Deadline.find({});
-  if (existing.length > 0) {
-    console.log(`📦 Using ${existing.length} cached deadlines`);
+  const existing = await Deadline.find({}).lean();
+
+  // If we already have complete docs, just use them
+  const hasComplete =
+    existing.length > 0 &&
+    existing.every(d => typeof d.date === 'string' && d.date &&
+                         typeof d.category === 'string' && d.category);
+
+  if (hasComplete) {
+    console.log(`📦 Using ${existing.length} cached deadlines (with date + category)`);
     return existing;
   }
 
-  console.log('⚙️ No deadlines in DB — scraping fresh data...');
-  const scraped = await fetchAllDeadlines();
+  // Either DB is empty or docs are missing fields -> rebuild from scraper
+  if (existing.length > 0) {
+    console.log('⚠️ Found deadlines without date/category — clearing collection and rescraping...');
+    await Deadline.deleteMany({});
+  } else {
+    console.log('⚙️ No deadlines in DB — scraping fresh data...');
+  }
+
+  const scraped = await fetchAllDeadlines(); // <- already computes date & category
   if (scraped?.length) {
     await Deadline.insertMany(scraped);
     console.log(`✅ Inserted ${scraped.length} deadlines into MongoDB`);
   }
   return scraped;
 }
+
 
 module.exports = { fetchAllDeadlines, getOrPopulateDeadlines };
