@@ -42,6 +42,8 @@ const transporter = nodemailer.createTransport({
 exports.register = async (req, res) => {
   let { email, password } = req.body || {};
 
+  console.log('[auth] /register called with', email);
+
   try {
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
@@ -60,7 +62,7 @@ exports.register = async (req, res) => {
     }
 
     // 2) Hash password + generate verification token
-    const hashedPassword   = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
     const verificationToken = uuidv4();
 
     // 3) Insert into Postgres
@@ -69,12 +71,13 @@ exports.register = async (req, res) => {
        VALUES ($1, $2, $3)`,
       [email, hashedPassword, verificationToken]
     );
+    console.log('[auth] user row created for', email);
 
-    // 4) Build verification URL
-    const verifyURL = buildVerificationLink(verificationToken, req);
-    console.log('[auth] Verification URL for', email, '→', verifyURL);
+    // 4) Build verification link
+    const verifyURL = buildVerificationLink(verificationToken);
+    console.log('[auth] verification link:', verifyURL);
 
-    // 5) Try to send verification email
+    // 5) Try to send email – if this fails, report it explicitly
     try {
       await transporter.sendMail({
         from: `"Sparely" <${process.env.EMAIL_USER}>`,
@@ -93,23 +96,31 @@ exports.register = async (req, res) => {
           <p><a href="${verifyURL}">${verifyURL}</a></p>
         `
       });
-      console.log('[auth] Verification email sent to', email);
-      return res
-        .status(201)
-        .json({ message: 'User registered. Check your email to verify your account.' });
-    } catch (emailErr) {
-      console.error('[auth] Failed to send verification email:', emailErr);
-      // IMPORTANT: user is still created — we just couldn’t send the email.
+
+      console.log('[auth] verification email sent to', email);
+
       return res.status(201).json({
-        message:
-          'User registered, but we could not send a verification email. Please contact support or try again later.'
+        message: 'User registered. Check your email to verify your account.'
+      });
+    } catch (mailErr) {
+      console.error('[auth] FAILED to send verification email:', mailErr);
+
+      // User is created, but mail failed – tell the frontend exactly that.
+      return res.status(201).json({
+        message: 'Account created, but we could not send the verification email.',
+        emailDelivery: 'failed',
+        emailError: mailErr.message
       });
     }
   } catch (err) {
-    console.error('Register error:', err);
-    return res.status(500).json({ message: 'Something went wrong during registration' });
+    console.error('Register error (DB/other):', err);
+    return res.status(500).json({
+      message: 'Something went wrong during registration',
+      error: err.message
+    });
   }
 };
+
 
 /**
  * GET /api/auth/verify?token=...
