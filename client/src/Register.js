@@ -9,37 +9,37 @@ const Register = () => {
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
 
-  const handleRegister = async (e) => {
-    e.preventDefault();
+const handleRegister = async (e) => {
+  e.preventDefault();
+  setMessage(''); // clear old message
 
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    let data = {};
     try {
-      console.log('Register -> API_BASE:', API_BASE);
-
-      const res = await fetch(`${API_BASE}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-
-      let data = {};
-      try {
-        data = await res.json();
-      } catch {
-        // if backend sent plain text, keep data as {}
-      }
-
-      if (res.ok) {
-        setMessage(
-          'Registration successful. Please check your email to verify your account.'
-        );
-      } else {
-        setMessage(data.message || 'Registration failed.');
-      }
-    } catch (err) {
-      console.error('Register error (frontend):', err);
-      setMessage('Something went wrong.');
+      data = await res.json();
+    } catch (e) {
+      // no JSON body
     }
-  };
+
+    console.log('Register response:', res.status, data);
+
+    if (res.ok) {
+      setMessage(data.message || 'Registration successful. Check your email.');
+    } else {
+      setMessage(data.message || `Registration failed (status ${res.status}).`);
+    }
+  } catch (err) {
+    console.error('Register fetch error:', err);
+    setMessage('Network error during registration.');
+  }
+};
+
 
   const outer = {
     minHeight: '100vh',
