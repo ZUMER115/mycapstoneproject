@@ -7,14 +7,23 @@ const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 // ---- ENV helpers ----
-const BACKEND_BASE = (process.env.BASE_URL || '').replace(/\/+$/, '');      // https://mycapstoneproject-kd1i.onrender.com
-const FRONTEND_BASE = (process.env.FRONTEND_URL || '').replace(/\/+$/, ''); // optional, for later
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const BACKEND_BASE = (process.env.BASE_URL || '').replace(/\/+$/, '');      // e.g. https://mycapstoneproject-kd1i.onrender.com
+const JWT_SECRET   = process.env.JWT_SECRET || 'dev-secret';
 
-function buildVerificationLink(token) {
-  // Right now we point directly to the backend verify route.
-  // Later, if you add a fancy frontend page, you can redirect there instead.
-  return `${BACKEND_BASE}/api/auth/verify?token=${token}`;
+// Build a verification link that works in prod and locally
+function buildVerificationLink(token, req) {
+  // If BASE_URL is set (Render), use that
+  if (BACKEND_BASE) {
+    return `${BACKEND_BASE}/api/auth/verify?token=${token}`;
+  }
+
+  // Fallback: infer from the incoming request (good for localhost)
+  const origin =
+    (req && (req.headers['x-forwarded-proto'] && req.headers['x-forwarded-host']))
+      ? `${req.headers['x-forwarded-proto']}://${req.headers['x-forwarded-host']}`
+      : `${req.protocol}://${req.get('host')}`;
+
+  return `${origin.replace(/\/+$/, '')}/api/auth/verify?token=${token}`;
 }
 
 // ---- Nodemailer transport (Gmail app password) ----
@@ -29,11 +38,6 @@ const transporter = nodemailer.createTransport({
 /**
  * POST /api/auth/register
  * Body: { email, password }
- *
- * 1) Normalize + validate input
- * 2) Check for existing user
- * 3) Store user with hashed password + verification_token
- * 4) Send verification email
  */
 exports.register = async (req, res) => {
   let { email, password } = req.body || {};
@@ -56,7 +60,7 @@ exports.register = async (req, res) => {
     }
 
     // 2) Hash password + generate verification token
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword   = await bcrypt.hash(password, 10);
     const verificationToken = uuidv4();
 
     // 3) Insert into Postgres
@@ -66,30 +70,41 @@ exports.register = async (req, res) => {
       [email, hashedPassword, verificationToken]
     );
 
-    // 4) Send verification email
-    const verifyURL = buildVerificationLink(verificationToken);
+    // 4) Build verification URL
+    const verifyURL = buildVerificationLink(verificationToken, req);
+    console.log('[auth] Verification URL for', email, '→', verifyURL);
 
-    await transporter.sendMail({
-      from: `"Sparely" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Verify your Sparely account',
-      html: `
-        <p>Hi,</p>
-        <p>Thanks for signing up for <strong>Sparely</strong>! Please verify your email address by clicking the button below:</p>
-        <p>
-          <a href="${verifyURL}"
-             style="display:inline-block;padding:10px 18px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;">
-            Verify my email
-          </a>
-        </p>
-        <p>Or copy and paste this link into your browser:</p>
-        <p><a href="${verifyURL}">${verifyURL}</a></p>
-      `
-    });
-
-    return res
-      .status(201)
-      .json({ message: 'User registered. Check your email to verify your account.' });
+    // 5) Try to send verification email
+    try {
+      await transporter.sendMail({
+        from: `"Sparely" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Verify your Sparely account',
+        html: `
+          <p>Hi,</p>
+          <p>Thanks for signing up for <strong>Sparely</strong>! Please verify your email address by clicking the button below:</p>
+          <p>
+            <a href="${verifyURL}"
+               style="display:inline-block;padding:10px 18px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;">
+              Verify my email
+            </a>
+          </p>
+          <p>Or copy and paste this link into your browser:</p>
+          <p><a href="${verifyURL}">${verifyURL}</a></p>
+        `
+      });
+      console.log('[auth] Verification email sent to', email);
+      return res
+        .status(201)
+        .json({ message: 'User registered. Check your email to verify your account.' });
+    } catch (emailErr) {
+      console.error('[auth] Failed to send verification email:', emailErr);
+      // IMPORTANT: user is still created — we just couldn’t send the email.
+      return res.status(201).json({
+        message:
+          'User registered, but we could not send a verification email. Please contact support or try again later.'
+      });
+    }
   } catch (err) {
     console.error('Register error:', err);
     return res.status(500).json({ message: 'Something went wrong during registration' });
@@ -123,8 +138,6 @@ exports.verifyEmail = async (req, res) => {
       return res.status(400).send('Invalid or expired verification link.');
     }
 
-    // For now, simple success text.
-    // Later you can redirect to FRONTEND_URL + '?verified=1'
     return res.send('Email successfully verified! You may now log in.');
   } catch (err) {
     console.error('Verify email error:', err);
