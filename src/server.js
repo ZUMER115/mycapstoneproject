@@ -6,6 +6,9 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const { query } = require('./config/db'); // ✅ add: pg pool helper, used by authController
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
+console.log('[email-test] RESEND_API_KEY present:', !!process.env.RESEND_API_KEY);
 console.log('🚀 Sparely server.js starting up!');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
@@ -106,6 +109,44 @@ app.use('/api/timeline', timelineRoutes);
 // --- start after DB connect ---
 const PORT = process.env.PORT || 5000;
 const uri  = process.env.MONGO_URI;
+
+// TEMP: test route to check Resend email sending
+app.get('/api/test-resend', async (req, res) => {
+  try {
+    console.log('[email-test] /api/test-resend hit');
+
+    const { data, error } = await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: 'zakariyyaumer115@gmail.com',  // or any address you want to test
+      subject: 'Sparely Resend test',
+      html: '<p>If you see this email, the backend successfully called <strong>Resend</strong>.</p>'
+    });
+
+    if (error) {
+      console.error('[email-test] Resend ERROR:', error);
+      return res.status(500).json({
+        ok: false,
+        message: 'Resend returned an error',
+        error
+      });
+    }
+
+    console.log('[email-test] Resend SUCCESS:', data);
+    return res.json({
+      ok: true,
+      message: 'Test email request sent to Resend',
+      data
+    });
+  } catch (err) {
+    console.error('[email-test] Unexpected exception:', err);
+    return res.status(500).json({
+      ok: false,
+      message: 'Unexpected server error when calling Resend',
+      error: err.message
+    });
+  }
+});
+
 // POSTGRES health (add-only)
 app.get('/health/pg', async (_req, res) => {
   try {
