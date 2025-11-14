@@ -1,4 +1,6 @@
-// src/server.js
+// src/server.js yes
+
+console.log();
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
