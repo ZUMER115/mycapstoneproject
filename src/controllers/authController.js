@@ -1,4 +1,5 @@
-// src/controllers/authController.js
+// controllers/authController.js
+
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
@@ -6,43 +7,33 @@ const { query } = require('../config/db');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-// ---- ENV helpers ----
-const BACKEND_BASE = (process.env.BASE_URL || '').replace(/\/+$/, '');      // e.g. https://mycapstoneproject-kd1i.onrender.com
-const JWT_SECRET   = process.env.JWT_SECRET || 'dev-secret';
+/* ---------- ENV helpers ---------- */
+const BACKEND_BASE = (process.env.BASE_URL || '').replace(/\/+$/, '');
+const FRONTEND_BASE = (process.env.FRONTEND_URL || '').replace(/\/+$/, '');
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
-// Build a verification link that works in prod and locally
-function buildVerificationLink(token, req) {
-  // If BASE_URL is set (Render), use that
-  if (BACKEND_BASE) {
-    return `${BACKEND_BASE}/api/auth/verify?token=${token}`;
+function buildVerificationLink(token) {
+  // If you later add a pretty frontend route, you can point there instead.
+  if (FRONTEND_BASE) {
+    // e.g. https://sparely.app/verify?token=...
+    return `${FRONTEND_BASE}/verify?token=${token}`;
   }
-
-  // Fallback: infer from the incoming request (good for localhost)
-  const origin =
-    (req && (req.headers['x-forwarded-proto'] && req.headers['x-forwarded-host']))
-      ? `${req.headers['x-forwarded-proto']}://${req.headers['x-forwarded-host']}`
-      : `${req.protocol}://${req.get('host')}`;
-
-  return `${origin.replace(/\/+$/, '')}/api/auth/verify?token=${token}`;
+  // Fallback: hit backend verify route directly
+  return `${BACKEND_BASE}/api/auth/verify?token=${token}`;
 }
 
-// ---- Nodemailer transport (Gmail app password) ----
+/* ---------- Nodemailer transport ---------- */
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
+    pass: process.env.EMAIL_PASS,
+  },
 });
 
-/**
- * POST /api/auth/register
- * Body: { email, password }
- */
+/* ---------- POST /api/auth/register ---------- */
 exports.register = async (req, res) => {
   let { email, password } = req.body || {};
-
-  console.log('[auth] /register called with', email);
 
   try {
     if (!email || !password) {
@@ -71,13 +62,11 @@ exports.register = async (req, res) => {
        VALUES ($1, $2, $3)`,
       [email, hashedPassword, verificationToken]
     );
-    console.log('[auth] user row created for', email);
 
-    // 4) Build verification link
+    // 4) Send verification email
     const verifyURL = buildVerificationLink(verificationToken);
-    console.log('[auth] verification link:', verifyURL);
+    console.log('[AUTH] verification link:', verifyURL);
 
-    // 5) Try to send email – if this fails, report it explicitly
     try {
       await transporter.sendMail({
         from: `"Sparely" <${process.env.EMAIL_USER}>`,
@@ -94,39 +83,25 @@ exports.register = async (req, res) => {
           </p>
           <p>Or copy and paste this link into your browser:</p>
           <p><a href="${verifyURL}">${verifyURL}</a></p>
-        `
-      });
-
-      console.log('[auth] verification email sent to', email);
-
-      return res.status(201).json({
-        message: 'User registered. Check your email to verify your account.'
+        `,
       });
     } catch (mailErr) {
-      console.error('[auth] FAILED to send verification email:', mailErr);
-
-      // User is created, but mail failed – tell the frontend exactly that.
-      return res.status(201).json({
-        message: 'Account created, but we could not send the verification email.',
-        emailDelivery: 'failed',
-        emailError: mailErr.message
-      });
+      console.error('[AUTH] Error sending verification email:', mailErr);
+      // We still return 201 so the user sees success, but log the problem.
     }
+
+    return res
+      .status(201)
+      .json({ message: 'User registered. Check your email to verify your account.' });
   } catch (err) {
-    console.error('Register error (DB/other):', err);
-    return res.status(500).json({
-      message: 'Something went wrong during registration',
-      error: err.message
-    });
+    console.error('Register error:', err);
+    return res
+      .status(500)
+      .json({ message: 'Something went wrong during registration' });
   }
 };
 
-
-/**
- * GET /api/auth/verify?token=...
- *
- * Marks user as verified and clears the one-time token.
- */
+/* ---------- GET /api/auth/verify?token=... ---------- */
 exports.verifyEmail = async (req, res) => {
   const { token } = req.query;
 
@@ -149,6 +124,7 @@ exports.verifyEmail = async (req, res) => {
       return res.status(400).send('Invalid or expired verification link.');
     }
 
+    // Later you can redirect to FRONTEND_BASE + '/login?verified=1'
     return res.send('Email successfully verified! You may now log in.');
   } catch (err) {
     console.error('Verify email error:', err);
@@ -156,10 +132,7 @@ exports.verifyEmail = async (req, res) => {
   }
 };
 
-/**
- * POST /api/auth/login
- * Body: { email, password }
- */
+/* ---------- POST /api/auth/login ---------- */
 exports.login = async (req, res) => {
   let { email, password } = req.body || {};
 

@@ -1,5 +1,6 @@
 // controllers/authController.js
 
+console.log("You're done. Bin is loading")
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
