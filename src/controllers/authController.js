@@ -3,43 +3,71 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { query } = require('../config/db');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 require('dotenv').config();
 
-// ---- ENV helpers ----
+// ---- Initialize Resend ----
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// ---- ENV Values ----
 const BACKEND_BASE = (process.env.BASE_URL || '').replace(/\/+$/, '');
 const FRONTEND_BASE = (process.env.FRONTEND_URL || '').replace(/\/+$/, '');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const FROM_EMAIL = process.env.FROM_EMAIL;
 
-// ---- Nodemailer transport (Gmail app password) ----
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
-
-// (optional but nice) test transport at startup
-transporter.verify((err, success) => {
-  if (err) {
-    console.error('[mail] Transport verification FAILED:', err.message);
-  } else {
-    console.log('[mail] Transport is ready to send emails');
-  }
-});
-
+// Build email verify URL
 function buildVerificationLink(token) {
   return `${BACKEND_BASE}/api/auth/verify?token=${token}`;
 }
 
+// 🚀 Send a verification email using Resend
+async function sendVerificationEmail(toEmail, token, isReminder = false) {
+  const verifyURL = buildVerificationLink(token);
+
+  const subject = isReminder
+    ? 'Verify your Sparely account (reminder)'
+    : 'Verify your Sparely account';
+
+  const html = `
+    <p>Hi,</p>
+    <p>${isReminder
+      ? 'You already started registering for <strong>Sparely</strong>.'
+      : 'Thanks for signing up for <strong>Sparely</strong>!'
+    }</p>
+    <p>Please verify your email by clicking the button below:</p>
+    <p>
+      <a href="${verifyURL}"
+         style="display:inline-block;padding:10px 18px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;">
+        Verify my email
+      </a>
+    </p>
+    <p>Or copy and paste this link:</p>
+    <p><a href="${verifyURL}">${verifyURL}</a></p>
+  `;
+
+  console.log(`[mail] Sending verification email → ${toEmail}`);
+
+  const result = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: toEmail,
+    subject,
+    html
+  });
+
+  if (result.error) {
+    console.error('[mail] Resend error:', result.error);
+    throw new Error(result.error.message);
+  }
+
+  console.log('[mail] Email sent successfully:', result.data?.id);
+}
+
 /**
  * POST /api/auth/register
- * Body: { email, password }
  */
 exports.register = async (req, res) => {
   let { email, password } = req.body || {};
-  console.log('[register] incoming body:', req.body);
+  console.log('[register] incoming:', req.body);
 
   try {
     if (!email || !password) {
@@ -47,117 +75,59 @@ exports.register = async (req, res) => {
     }
 
     email = String(email).trim().toLowerCase();
-
     if (password.length < 6) {
       return res.status(400).json({ message: 'Password must be at least 6 characters' });
     }
 
-    // 1) Check if user already exists
+    // --- Check if user already exists ---
     const existing = await query('SELECT * FROM users WHERE email = $1', [email]);
-    const existingUser = existing.rows[0];
+    const user = existing.rows[0];
 
-    if (existingUser) {
-      // Case A: user exists and is already verified
-      if (existingUser.is_verified) {
-        console.log('[register] email already registered & verified:', email);
+    if (user) {
+      if (user.is_verified) {
         return res.status(400).json({ message: 'Email already registered.' });
       }
 
-      // Case B: user exists but is NOT verified -> re-send verification
-      console.log('[register] user exists but not verified, resending email:', email);
+      // User exists but NOT verified → resend verification email
+      console.log('[register] User not verified. Resending email.');
 
-      // ensure they have a token; if not, create one and store it
-      let token = existingUser.verification_token;
+      let token = user.verification_token;
       if (!token) {
         token = uuidv4();
         await query(
-          `UPDATE users
-             SET verification_token = $1, updated_at = NOW()
-           WHERE id = $2`,
-          [token, existingUser.id]
+          `UPDATE users SET verification_token=$1, updated_at=NOW() WHERE id=$2`,
+          [token, user.id]
         );
       }
 
-      const verifyURL = buildVerificationLink(token);
+      await sendVerificationEmail(email, token, true);
 
-      try {
-        await transporter.sendMail({
-          from: `"Sparely" <${process.env.EMAIL_USER}>`,
-          to: email,
-          subject: 'Verify your Sparely account (reminder)',
-          html: `
-            <p>Hi,</p>
-            <p>You already started registering for <strong>Sparely</strong>.</p>
-            <p>Please verify your email by clicking the button below:</p>
-            <p>
-              <a href="${verifyURL}"
-                style="display:inline-block;padding:10px 18px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;">
-                Verify my email
-              </a>
-            </p>
-            <p>Or copy this link:</p>
-            <p><a href="${verifyURL}">${verifyURL}</a></p>
-          `
-        });
-
-        console.log('[register] reminder verification email sent to:', email);
-        return res.status(200).json({
-          message: 'Verification email already sent. Please check your inbox.'
-        });
-      } catch (mailErr) {
-        console.error('[mail] error resending verification to', email, mailErr);
-        return res.status(500).json({
-          message: 'Could not send verification email, please try again later.',
-          mailError: mailErr.message
-        });
-      }
+      return res.status(200).json({
+        message: 'Verification email re-sent. Please check your inbox.'
+      });
     }
 
-    // 2) New user -> create + send first verification email
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // --- Create new user ---
+    const hashed = await bcrypt.hash(password, 10);
     const verificationToken = uuidv4();
 
     await query(
       `INSERT INTO users (email, password_hash, verification_token)
        VALUES ($1, $2, $3)`,
-      [email, hashedPassword, verificationToken]
+      [email, hashed, verificationToken]
     );
 
-    const verifyURL = buildVerificationLink(verificationToken);
+    await sendVerificationEmail(email, verificationToken, false);
 
-    try {
-      await transporter.sendMail({
-        from: `"Sparely" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: 'Verify your Sparely account',
-        html: `
-          <p>Hi,</p>
-          <p>Thanks for signing up for <strong>Sparely</strong>! Please verify your email address by clicking the button below:</p>
-          <p>
-            <a href="${verifyURL}"
-               style="display:inline-block;padding:10px 18px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;">
-              Verify my email
-            </a>
-          </p>
-          <p>Or copy and paste this link into your browser:</p>
-          <p><a href="${verifyURL}">${verifyURL}</a></p>
-        `
-      });
-
-      console.log('[register] verification email sent to:', email);
-      return res.status(201).json({
-        message: 'User registered. Check your email to verify your account.'
-      });
-    } catch (mailErr) {
-      console.error('[mail] error sending verification to', email, mailErr);
-      return res.status(500).json({
-        message: 'Could not send verification email, please try again later.',
-        mailError: mailErr.message
-      });
-    }
+    return res.status(201).json({
+      message: 'User registered! Check your email to verify your account.'
+    });
   } catch (err) {
     console.error('Register error:', err);
-    return res.status(500).json({ message: 'Something went wrong during registration' });
+    return res.status(500).json({
+      message: 'Could not send verification email',
+      error: err.message
+    });
   }
 };
 
@@ -167,17 +137,15 @@ exports.register = async (req, res) => {
 exports.verifyEmail = async (req, res) => {
   const { token } = req.query;
 
-  if (!token) {
-    return res.status(400).send('Missing verification token');
-  }
+  if (!token) return res.status(400).send('Missing verification token');
 
   try {
     const result = await query(
       `UPDATE users
-         SET is_verified = TRUE,
-             verification_token = NULL,
-             updated_at = NOW()
-       WHERE verification_token = $1
+         SET is_verified=TRUE,
+             verification_token=NULL,
+             updated_at=NOW()
+       WHERE verification_token=$1
        RETURNING id, email`,
       [token]
     );
@@ -188,14 +156,13 @@ exports.verifyEmail = async (req, res) => {
 
     return res.send('Email successfully verified! You may now log in.');
   } catch (err) {
-    console.error('Verify email error:', err);
+    console.error('Verify error:', err);
     return res.status(500).send('Error verifying email');
   }
 };
 
 /**
  * POST /api/auth/login
- * Body: { email, password }
  */
 exports.login = async (req, res) => {
   let { email, password } = req.body || {};
@@ -205,21 +172,19 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    email = String(email).trim().toLowerCase();
+    email = email.trim().toLowerCase();
 
     const result = await query('SELECT * FROM users WHERE email = $1', [email]);
     const user = result.rows[0];
 
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
+    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
 
     if (!user.is_verified) {
       return res.status(401).json({ message: 'Please verify your email before logging in' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch) {
+    const matches = await bcrypt.compare(password, user.password_hash);
+    if (!matches) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
