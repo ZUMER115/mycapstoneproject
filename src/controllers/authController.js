@@ -6,32 +6,18 @@ const { query } = require("../config/db");
 const { Resend } = require("resend");
 require("dotenv").config();
 
-// ------------------------------------------------------
-// ENV
-// ------------------------------------------------------
+// --- ENV ---
 const BACKEND_BASE = (process.env.BASE_URL || "").replace(/\/+$/, "");
 const FRONTEND_BASE = (process.env.FRONTEND_URL || "").replace(/\/+$/, "");
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 
-const RESEND_KEY = process.env.RESEND_API_KEY;
+const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.FROM_EMAIL;
 
-// Initialize Resend client
-const resend = new Resend(RESEND_KEY);
-
-// Logging for debugging on Render:
-console.log("------------------------------------------------------");
-console.log("[email] Using Resend:", RESEND_KEY ? "API Key Loaded" : "MISSING API KEY");
-console.log("[email] FROM_EMAIL:", FROM_EMAIL || "MISSING");
-console.log("[BASE_URL]:", BACKEND_BASE);
-console.log("------------------------------------------------------");
-
-if (!RESEND_KEY) {
-  console.warn("[WARN] No RESEND_API_KEY found — emails WILL NOT SEND.");
-}
-if (!FROM_EMAIL) {
-  console.warn("[WARN] No FROM_EMAIL found — emails WILL NOT SEND.");
-}
+// For debugging at startup
+console.log("[email] Using Resend:", process.env.RESEND_API_KEY ? "API Key Loaded" : "MISSING");
+console.log("[email] FROM_EMAIL:", FROM_EMAIL);
+console.log("[BASE_URL]:", BACKEND_BASE || "(not set)");
 
 // Build verification link
 function buildVerificationLink(token) {
@@ -43,43 +29,37 @@ function buildVerificationLink(token) {
 // ------------------------------------------------------
 exports.register = async (req, res) => {
   let { email, password } = req.body || {};
-  console.log("[register] Incoming:", req.body);
+  console.log("[register] incoming body:", req.body);
 
   try {
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    email = email.toLowerCase().trim();
+    email = String(email).trim().toLowerCase();
 
     if (password.length < 6) {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
-    // Check if user exists
     const existing = await query("SELECT * FROM users WHERE email = $1", [email]);
     const existingUser = existing.rows[0];
 
-    // ------------------------------------------------------
-    // CASE 1 — User exists & verified
-    // ------------------------------------------------------
+    // CASE 1: User exists and already verified
     if (existingUser && existingUser.is_verified) {
-      console.log("[register] User already verified:", email);
+      console.log("[register] user already verified:", email);
       return res.status(400).json({ message: "Email already registered." });
     }
 
-    // ------------------------------------------------------
-    // CASE 2 — User exists but NOT verified → resend email
-    // ------------------------------------------------------
+    // CASE 2: User exists but NOT verified → resend verification email
     if (existingUser && !existingUser.is_verified) {
-      console.log("[register] User exists but not verified — resending email:", email);
+      console.log("[register] user exists but not verified:", email);
 
       let token = existingUser.verification_token;
-
       if (!token) {
         token = uuidv4();
         await query(
-          `UPDATE users SET verification_token=$1, updated_at=NOW() WHERE id=$2`,
+          `UPDATE users SET verification_token = $1, updated_at = NOW() WHERE id = $2`,
           [token, existingUser.id]
         );
       }
@@ -87,23 +67,23 @@ exports.register = async (req, res) => {
       const verifyURL = buildVerificationLink(token);
 
       try {
-        const result = await resend.emails.send({
+        await resend.emails.send({
           from: FROM_EMAIL,
           to: email,
           subject: "Verify your Sparely email (reminder)",
           html: `
-            <p>You previously started creating a Sparely account.</p>
-            <p>Click below to verify your email:</p>
+            <p>You began signing up for Sparely.</p>
+            <p>Please verify your email:</p>
             <a href="${verifyURL}">Verify Email</a>
           `,
         });
 
-        console.log("[register] Resend reminder sent:", result);
+        console.log("[register] reminder email sent:", email);
         return res.status(200).json({
           message: "Verification email already sent. Please check your inbox.",
         });
       } catch (mailErr) {
-        console.error("[mail] Reminder error:", mailErr);
+        console.error("[mail] resend error:", mailErr);
         return res.status(500).json({
           message: "Could not send verification email.",
           mailError: mailErr.message,
@@ -111,38 +91,36 @@ exports.register = async (req, res) => {
       }
     }
 
-    // ------------------------------------------------------
-    // CASE 3 — New user → create row + send verification email
-    // ------------------------------------------------------
+    // CASE 3: New user → create account + send verification email
     const hashedPassword = await bcrypt.hash(password, 10);
     const verificationToken = uuidv4();
 
     await query(
       `INSERT INTO users (email, password_hash, verification_token)
-       VALUES ($1,$2,$3)`,
+       VALUES ($1, $2, $3)`,
       [email, hashedPassword, verificationToken]
     );
 
     const verifyURL = buildVerificationLink(verificationToken);
 
     try {
-      const result = await resend.emails.send({
+      await resend.emails.send({
         from: FROM_EMAIL,
         to: email,
         subject: "Verify your Sparely account",
         html: `
           <p>Welcome to Sparely!</p>
-          <p>Click below to verify your email:</p>
+          <p>Verify your email to activate your account:</p>
           <a href="${verifyURL}">Verify Email</a>
         `,
       });
 
-      console.log("[register] New verification email sent:", result);
+      console.log("[register] new user email sent:", email);
       return res.status(201).json({
         message: "User registered. Check your email to verify your account.",
       });
     } catch (mailErr) {
-      console.error("[mail] Failed sending new verification:", mailErr);
+      console.error("[mail] resend error:", mailErr);
       return res.status(500).json({
         message: "Could not send verification email.",
         mailError: mailErr.message,
@@ -150,7 +128,9 @@ exports.register = async (req, res) => {
     }
   } catch (err) {
     console.error("Register error:", err);
-    return res.status(500).json({ message: "Something went wrong during registration" });
+    return res
+      .status(500)
+      .json({ message: "Something went wrong during registration" });
   }
 };
 
@@ -165,11 +145,11 @@ exports.verifyEmail = async (req, res) => {
   try {
     const result = await query(
       `UPDATE users
-       SET is_verified=TRUE,
-           verification_token=NULL,
-           updated_at=NOW()
-       WHERE verification_token=$1
-       RETURNING id,email`,
+       SET is_verified = TRUE,
+           verification_token = NULL,
+           updated_at = NOW()
+       WHERE verification_token = $1
+       RETURNING id, email`,
       [token]
     );
 
@@ -190,21 +170,21 @@ exports.verifyEmail = async (req, res) => {
 exports.login = async (req, res) => {
   let { email, password } = req.body || {};
 
-  try {
+  try{
     if (!email || !password)
       return res.status(400).json({ message: "Email and password are required" });
 
-    email = email.toLowerCase().trim();
+    email = String(email).trim().toLowerCase();
 
-    const result = await query("SELECT * FROM users WHERE email=$1", [email]);
+    const result = await query("SELECT * FROM users WHERE email = $1", [email]);
     const user = result.rows[0];
 
     if (!user) return res.status(400).json({ message: "Invalid credentials" });
     if (!user.is_verified)
       return res.status(401).json({ message: "Please verify your email" });
 
-    const match = await bcrypt.compare(password, user.password_hash);
-    if (!match) return res.status(400).json({ message: "Invalid credentials" });
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
     const token = jwt.sign(
       { id: user.id, email: user.email },
@@ -216,5 +196,128 @@ exports.login = async (req, res) => {
   } catch (err) {
     console.error("Login error:", err);
     return res.status(500).json({ message: "Login error" });
+  }
+};
+
+// ------------------------------------------------------
+// UPDATE EMAIL (no re-verification for now)
+// ------------------------------------------------------
+exports.updateEmail = async (req, res) => {
+  const userId = req.user?.id;
+  let { newEmail, password } = req.body || {};
+
+  try {
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    if (!newEmail || !password) {
+      return res.status(400).json({ message: "New email and current password are required" });
+    }
+
+    newEmail = String(newEmail).trim().toLowerCase();
+
+    // 1) Load current user
+    const result = await query("SELECT * FROM users WHERE id = $1", [userId]);
+    const user = result.rows[0];
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // 2) Check current password
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Incorrect password" });
+    }
+
+    if (newEmail === user.email.toLowerCase()) {
+      return res.status(200).json({ message: "Email is unchanged." });
+    }
+
+    // 3) Ensure email not used by someone else
+    const emailCheck = await query(
+      "SELECT 1 FROM users WHERE email = $1 AND id <> $2",
+      [newEmail, userId]
+    );
+
+    if (emailCheck.rows.length > 0) {
+      return res.status(400).json({ message: "That email is already in use." });
+    }
+
+    // 4) Update email (keeping is_verified as-is, per your request)
+    await query(
+      `UPDATE users
+         SET email = $1,
+             updated_at = NOW()
+       WHERE id = $2`,
+      [newEmail, userId]
+    );
+
+    // (optional) issue a fresh token with the new email
+    const newToken = jwt.sign(
+      { id: user.id, email: newEmail },
+      JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    return res.status(200).json({
+      message: "Email updated successfully.",
+      token: newToken
+    });
+  } catch (err) {
+    console.error("Update email error:", err);
+    return res.status(500).json({ message: "Error updating email" });
+  }
+};
+
+// ------------------------------------------------------
+// CHANGE PASSWORD
+// ------------------------------------------------------
+exports.changePassword = async (req, res) => {
+  const userId = req.user?.id;
+  const { currentPassword, newPassword } = req.body || {};
+
+  try {
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current and new passwords are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "New password must be at least 6 characters" });
+    }
+
+    // 1) Load user
+    const result = await query("SELECT * FROM users WHERE id = $1", [userId]);
+    const user = result.rows[0];
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // 2) Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    // 3) Hash and update new password
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await query(
+      `UPDATE users
+         SET password_hash = $1,
+             updated_at = NOW()
+       WHERE id = $2`,
+      [hashed, userId]
+    );
+
+    return res.status(200).json({ message: "Password updated successfully." });
+  } catch (err) {
+    console.error("Change password error:", err);
+    return res.status(500).json({ message: "Error changing password" });
   }
 };

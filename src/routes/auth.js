@@ -1,14 +1,26 @@
 // src/routes/auth.js
 const express = require('express');
 const router = express.Router();
-const { register, login, verifyEmail } = require('../controllers/authController');
+const {
+  register,
+  login,
+  verifyEmail,
+  updateEmail,
+  changePassword
+} = require('../controllers/authController');
+
 const bcrypt = require('bcryptjs');
 const { query } = require('../config/db');
+const authMiddleware = require('../middleware/authMiddleware');
 
 // Regular routes
 router.post('/register', register);
 router.post('/login', login);
 router.get('/verify', verifyEmail);
+
+// NEW: protected profile actions
+router.put('/email', authMiddleware, updateEmail);
+router.put('/password', authMiddleware, changePassword);
 
 /* ---------- DEMO LOGIN (temporary) ---------- */
 router.post('/demo-login', async (_req, res) => {
