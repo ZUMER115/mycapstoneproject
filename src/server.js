@@ -10,12 +10,24 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const app = express();
 
 // --- CORS (allow Vercel and localhost) ---
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
-const allowedOrigins = [
-  FRONTEND_URL,
-  'http://localhost:3000',
-  'https://mycapstoneproject-tbo9.vercel.app'
-];
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // mobile apps, curl, postman
+
+    if (
+      origin.includes('vercel.app') ||       // allow all Vercel frontends
+      origin.includes('onrender.com') ||     // your backend origin
+      origin === 'http://localhost:3000'
+    ) {
+      return callback(null, true);
+    }
+
+    console.log('❌ CORS blocked:', origin);
+    callback(new Error('CORS blocked: ' + origin));
+  },
+  credentials: true
+}));
+
 const { getOrPopulateDeadlines } = require('./utils/deadlineScraper');  // ⬅️ Add this near your other imports
 
 // allow vercel preview URLs dynamically
