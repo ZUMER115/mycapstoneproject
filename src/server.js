@@ -10,23 +10,30 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const app = express();
 
 // --- CORS (allow Vercel and localhost) ---
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // mobile apps, curl, postman
+// ✅ define allowedOrigins BEFORE app.use(cors(...))
+const allowedOrigins = [
+  process.env.FRONTEND_URL,                        // e.g. https://your-frontend.com
+  'https://mycapstoneproject-kd1i.onrender.com',   // your Render app URL
+  'http://localhost:3000',                         // local React dev
+  'http://localhost:5173'                          // if you ever use Vite
+].filter(Boolean); // remove undefined/null entries
 
-    if (
-      origin.includes('vercel.app') ||       // allow all Vercel frontends
-      origin.includes('onrender.com') ||     // your backend origin
-      origin === 'http://localhost:3000'
-    ) {
-      return callback(null, true);
-    }
-
-    console.log('❌ CORS blocked:', origin);
-    callback(new Error('CORS blocked: ' + origin));
-  },
-  credentials: true
-}));
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Allow:
+      //   - same-origin server-to-server
+      //   - tools like Postman (no origin)
+      //   - any origin in our whitelist
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      console.log('[CORS] Blocked origin:', origin);
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true
+  })
+);
 
 const { getOrPopulateDeadlines } = require('./utils/deadlineScraper');  // ⬅️ Add this near your other imports
 
