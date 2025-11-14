@@ -1,5 +1,9 @@
 import { useState } from 'react';
 
+// 👇 Use env var, fall back to localhost for local dev
+const API_BASE =
+  process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -9,20 +13,30 @@ const Register = () => {
     e.preventDefault();
 
     try {
-      const res = await fetch('http://localhost:5000/api/auth/register', {
+      console.log('Register -> API_BASE:', API_BASE);
+
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
 
-      const data = await res.json();
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        // if backend sent plain text, keep data as {}
+      }
 
       if (res.ok) {
-        setMessage('Registration successful. You can now log in.');
+        setMessage(
+          'Registration successful. Please check your email to verify your account.'
+        );
       } else {
         setMessage(data.message || 'Registration failed.');
       }
     } catch (err) {
+      console.error('Register error (frontend):', err);
       setMessage('Something went wrong.');
     }
   };
@@ -78,8 +92,16 @@ const Register = () => {
   return (
     <div style={outer} className="register-wrap">
       <form onSubmit={handleRegister} style={card}>
-        <h2 style={{ marginBottom: '1rem', fontSize: '1.5rem' }}>Create Account</h2>
-        <p style={{ marginBottom: '1.5rem', fontSize: '0.9rem', color: '#6b7280' }}>
+        <h2 style={{ marginBottom: '1rem', fontSize: '1.5rem' }}>
+          Create Account
+        </h2>
+        <p
+          style={{
+            marginBottom: '1.5rem',
+            fontSize: '0.9rem',
+            color: '#6b7280'
+          }}
+        >
           Fill in your details to register
         </p>
 
@@ -101,7 +123,9 @@ const Register = () => {
           style={input}
         />
 
-        <button type="submit" style={button}>Register</button>
+        <button type="submit" style={button}>
+          Register
+        </button>
         <p style={messageStyle}>{message}</p>
       </form>
 
