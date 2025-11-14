@@ -17,10 +17,20 @@ function buildVerificationLink(token) {
 
 // ---- Nodemailer transport (Gmail app password) ----
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false, // upgrade via STARTTLS
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
+  }
+});
+
+transporter.verify((err, success) => {
+  if (err) {
+    console.error('[mail] Transport verification FAILED:', err);
+  } else {
+    console.log('[mail] Transport is ready to send emails');
   }
 });
 
