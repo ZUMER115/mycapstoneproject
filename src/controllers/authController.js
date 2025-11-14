@@ -7,54 +7,30 @@ const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 // ---- ENV helpers ----
-// Fallback to your Render URL if BASE_URL is not set
-const BACKEND_BASE = (process.env.BASE_URL || 'https://mycapstoneproject-kd1i.onrender.com').replace(/\/+$/, '');
+const BACKEND_BASE = (process.env.BASE_URL || '').replace(/\/+$/, '');
+const FRONTEND_BASE = (process.env.FRONTEND_URL || '').replace(/\/+$/, '');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-
-function buildVerificationLink(token) {
-  return `${BACKEND_BASE}/api/auth/verify?token=${token}`;
-}
 
 // ---- Nodemailer transport (Gmail app password) ----
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // upgrade via STARTTLS
+  service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   }
 });
 
+// (optional but nice) test transport at startup
 transporter.verify((err, success) => {
   if (err) {
-    console.error('[mail] Transport verification FAILED:', err);
+    console.error('[mail] Transport verification FAILED:', err.message);
   } else {
     console.log('[mail] Transport is ready to send emails');
   }
 });
 
-async function sendVerificationEmail(email, token) {
-  const verifyURL = buildVerificationLink(token);
-  console.log('[auth] Sending verification email to', email, '->', verifyURL);
-
-  await transporter.sendMail({
-    from: `"Sparely" <${process.env.EMAIL_USER}>`,
-    to: email,
-    subject: 'Verify your Sparely account',
-    html: `
-      <p>Hi,</p>
-      <p>Thanks for signing up for <strong>Sparely</strong>! Please verify your email address by clicking the button below:</p>
-      <p>
-        <a href="${verifyURL}"
-           style="display:inline-block;padding:10px 18px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;">
-          Verify my email
-        </a>
-      </p>
-      <p>Or copy and paste this link into your browser:</p>
-      <p><a href="${verifyURL}">${verifyURL}</a></p>
-    `
-  });
+function buildVerificationLink(token) {
+  return `${BACKEND_BASE}/api/auth/verify?token=${token}`;
 }
 
 /**
@@ -63,6 +39,7 @@ async function sendVerificationEmail(email, token) {
  */
 exports.register = async (req, res) => {
   let { email, password } = req.body || {};
+  console.log('[register] incoming body:', req.body);
 
   try {
     if (!email || !password) {
@@ -76,41 +53,67 @@ exports.register = async (req, res) => {
     }
 
     // 1) Check if user already exists
-    const existingRes = await query('SELECT * FROM users WHERE email = $1', [email]);
-    const existing = existingRes.rows[0];
+    const existing = await query('SELECT * FROM users WHERE email = $1', [email]);
+    const existingUser = existing.rows[0];
 
-    if (existing) {
-      // a) Already verified → tell them to log in
-      if (existing.is_verified) {
-        return res
-          .status(400)
-          .json({ message: 'Email already registered. Please log in.' });
+    if (existingUser) {
+      // Case A: user exists and is already verified
+      if (existingUser.is_verified) {
+        console.log('[register] email already registered & verified:', email);
+        return res.status(400).json({ message: 'Email already registered.' });
       }
 
-      // b) Exists but NOT verified → (re)send verification email
-      const token = existing.verification_token || uuidv4();
+      // Case B: user exists but is NOT verified -> re-send verification
+      console.log('[register] user exists but not verified, resending email:', email);
 
-      if (!existing.verification_token) {
+      // ensure they have a token; if not, create one and store it
+      let token = existingUser.verification_token;
+      if (!token) {
+        token = uuidv4();
         await query(
-          'UPDATE users SET verification_token = $1, updated_at = NOW() WHERE id = $2',
-          [token, existing.id]
+          `UPDATE users
+             SET verification_token = $1, updated_at = NOW()
+           WHERE id = $2`,
+          [token, existingUser.id]
         );
       }
 
+      const verifyURL = buildVerificationLink(token);
+
       try {
-        await sendVerificationEmail(email, token);
+        await transporter.sendMail({
+          from: `"Sparely" <${process.env.EMAIL_USER}>`,
+          to: email,
+          subject: 'Verify your Sparely account (reminder)',
+          html: `
+            <p>Hi,</p>
+            <p>You already started registering for <strong>Sparely</strong>.</p>
+            <p>Please verify your email by clicking the button below:</p>
+            <p>
+              <a href="${verifyURL}"
+                style="display:inline-block;padding:10px 18px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;">
+                Verify my email
+              </a>
+            </p>
+            <p>Or copy this link:</p>
+            <p><a href="${verifyURL}">${verifyURL}</a></p>
+          `
+        });
+
+        console.log('[register] reminder verification email sent to:', email);
         return res.status(200).json({
-          message: 'Email already registered but not verified. A verification email has been sent.'
+          message: 'Verification email already sent. Please check your inbox.'
         });
       } catch (mailErr) {
-        console.error('[auth] Resend verification email error:', mailErr);
+        console.error('[mail] error resending verification to', email, mailErr);
         return res.status(500).json({
-          message: 'Could not send verification email. Please try again later.'
+          message: 'Could not send verification email, please try again later.',
+          mailError: mailErr.message
         });
       }
     }
 
-    // 2) New user: hash password + create verification token
+    // 2) New user -> create + send first verification email
     const hashedPassword = await bcrypt.hash(password, 10);
     const verificationToken = uuidv4();
 
@@ -120,20 +123,38 @@ exports.register = async (req, res) => {
       [email, hashedPassword, verificationToken]
     );
 
-    // 3) Send verification email
+    const verifyURL = buildVerificationLink(verificationToken);
+
     try {
-      await sendVerificationEmail(email, verificationToken);
+      await transporter.sendMail({
+        from: `"Sparely" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Verify your Sparely account',
+        html: `
+          <p>Hi,</p>
+          <p>Thanks for signing up for <strong>Sparely</strong>! Please verify your email address by clicking the button below:</p>
+          <p>
+            <a href="${verifyURL}"
+               style="display:inline-block;padding:10px 18px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:6px;">
+              Verify my email
+            </a>
+          </p>
+          <p>Or copy and paste this link into your browser:</p>
+          <p><a href="${verifyURL}">${verifyURL}</a></p>
+        `
+      });
+
+      console.log('[register] verification email sent to:', email);
+      return res.status(201).json({
+        message: 'User registered. Check your email to verify your account.'
+      });
     } catch (mailErr) {
-      console.error('[auth] Initial verification email error:', mailErr);
-      // You *could* delete the user row here if you want strict behavior.
+      console.error('[mail] error sending verification to', email, mailErr);
       return res.status(500).json({
-        message: 'Could not send verification email. Please try again later.'
+        message: 'Could not send verification email, please try again later.',
+        mailError: mailErr.message
       });
     }
-
-    return res
-      .status(201)
-      .json({ message: 'User registered. Check your email to verify your account.' });
   } catch (err) {
     console.error('Register error:', err);
     return res.status(500).json({ message: 'Something went wrong during registration' });
