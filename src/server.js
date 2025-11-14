@@ -117,7 +117,7 @@ app.get('/api/test-resend', async (req, res) => {
 
     const { data, error } = await resend.emails.send({
       from: 'onboarding@resend.dev',
-      to: 'zakariyyaumer115@gmail.com',  // or any address you want to test
+      to: 'zackbozz1@gmail.com',  // or any address you want to test
       subject: 'Sparely Resend test',
       html: '<p>If you see this email, the backend successfully called <strong>Resend</strong>.</p>'
     });
