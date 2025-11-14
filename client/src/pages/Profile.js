@@ -8,7 +8,20 @@ export default function Profile() {
   const [theme, setTheme] = useState('light');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // account-related state
+  const [updatingEmail, setUpdatingEmail] = useState(false);
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [currentPasswordForEmail, setCurrentPasswordForEmail] = useState('');
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
   const [msg, setMsg] = useState(null); // { type: 'ok' | 'err', text: string }
+
+  const API_BASE = 'http://localhost:5000';
 
   // ---- helpers ----
   const clampLead = (n) => {
@@ -18,30 +31,45 @@ export default function Profile() {
 
   const applyTheme = (t) => {
     document.documentElement.dataset.theme = t;
-    try { localStorage.setItem('theme', t); } catch {}
+    try {
+      localStorage.setItem('theme', t);
+    } catch {}
+  };
+
+  const getToken = () => {
+    try {
+      return localStorage.getItem('token') || '';
+    } catch {
+      return '';
+    }
   };
 
   // Load user + preferences
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) { setLoading(false); return; }
+    const token = getToken();
+    if (!token) {
+      setLoading(false);
+      return;
+    }
 
     try {
       const decoded = jwtDecode(token);
       const e = decoded?.email || '';
       setEmail(e);
 
-      if (!e) { setLoading(false); return; }
+      if (!e) {
+        setLoading(false);
+        return;
+      }
 
-      fetch(`http://localhost:5000/api/preferences/${encodeURIComponent(e)}`)
-        .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to load preferences')))
-        .then(p => {
-          // API returns snake_case
+      fetch(`${API_BASE}/api/preferences/${encodeURIComponent(e)}`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load preferences'))))
+        .then((p) => {
           const ltd = Number(p.lead_time_days ?? 3);
           const thm = p.theme || 'light';
           setLeadTimeDays(clampLead(ltd));
           setTheme(thm);
-          applyTheme(thm); // live preview + persist
+          applyTheme(thm);
         })
         .catch(() => {})
         .finally(() => setLoading(false));
@@ -52,14 +80,16 @@ export default function Profile() {
 
   // Save preferences
   const save = async () => {
-    if (!email) { setMsg({ type: 'err', text: 'Please log in first.' }); return; }
+    if (!email) {
+      setMsg({ type: 'err', text: 'Please log in first.' });
+      return;
+    }
     setSaving(true);
     setMsg(null);
     try {
-      const res = await fetch('http://localhost:5000/api/preferences', {
+      const res = await fetch(`${API_BASE}/api/preferences`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // IMPORTANT: your server expects snake_case lead_time_days
         body: JSON.stringify({
           email,
           lead_time_days: clampLead(leadTimeDays),
@@ -68,11 +98,15 @@ export default function Profile() {
       });
 
       const text = await res.text();
-      let data; try { data = JSON.parse(text); } catch { data = { message: text }; }
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { message: text };
+      }
 
       if (!res.ok) throw new Error(data?.message || 'Save failed');
 
-      // Reflect what the server actually stored
       const storedLead = Number(data.lead_time_days ?? leadTimeDays);
       const storedTheme = data.theme || theme;
       setLeadTimeDays(clampLead(storedLead));
@@ -84,6 +118,140 @@ export default function Profile() {
       setMsg({ type: 'err', text: e?.message || 'Failed to save.' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ---- Update Email (no verification, requires current password) ----
+  const handleEmailUpdate = async (e) => {
+    e.preventDefault();
+    setMsg(null);
+
+    if (!email) {
+      setMsg({ type: 'err', text: 'Please log in first.' });
+      return;
+    }
+    if (!newEmail.trim()) {
+      setMsg({ type: 'err', text: 'Please enter a new email.' });
+      return;
+    }
+    if (!currentPasswordForEmail) {
+      setMsg({ type: 'err', text: 'Please enter your current password.' });
+      return;
+    }
+
+    setUpdatingEmail(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`${API_BASE}/api/auth/change-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({
+          currentPassword: currentPasswordForEmail,
+          newEmail: newEmail.trim()
+        })
+      });
+
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { message: text };
+      }
+
+      if (!res.ok) throw new Error(data?.message || 'Could not update email.');
+
+      // Backend may return a fresh token; if so, store it and re-decode email
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        try {
+          const decoded = jwtDecode(data.token);
+          setEmail(decoded?.email || newEmail.trim());
+        } catch {
+          setEmail(newEmail.trim());
+        }
+      } else {
+        // fallback
+        setEmail(newEmail.trim());
+      }
+
+      setNewEmail('');
+      setCurrentPasswordForEmail('');
+      setMsg({ type: 'ok', text: 'Email updated.' });
+    } catch (err) {
+      setMsg({ type: 'err', text: err?.message || 'Failed to update email.' });
+    } finally {
+      setUpdatingEmail(false);
+    }
+  };
+
+  // ---- Change Password (old password + new password) ----
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setMsg(null);
+
+    if (!email) {
+      setMsg({ type: 'err', text: 'Please log in first.' });
+      return;
+    }
+    if (!currentPassword) {
+      setMsg({ type: 'err', text: 'Please enter your current password.' });
+      return;
+    }
+    if (!newPassword) {
+      setMsg({ type: 'err', text: 'Please enter a new password.' });
+      return;
+    }
+    if (newPassword.length < 6) {
+      setMsg({ type: 'err', text: 'New password must be at least 6 characters.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setMsg({ type: 'err', text: 'New passwords do not match.' });
+      return;
+    }
+
+    setUpdatingPassword(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`${API_BASE}/api/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword
+        })
+      });
+
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { message: text };
+      }
+
+      if (!res.ok) throw new Error(data?.message || 'Could not change password.');
+
+      // Optionally, backend may rotate token; if so, store it
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setMsg({ type: 'ok', text: 'Password changed successfully.' });
+    } catch (err) {
+      setMsg({ type: 'err', text: err?.message || 'Failed to change password.' });
+    } finally {
+      setUpdatingPassword(false);
     }
   };
 
@@ -110,9 +278,110 @@ export default function Profile() {
         {/* Account */}
         <section style={card}>
           <h3 style={{ marginTop: 0, marginBottom: 8 }}>Account</h3>
-          <div style={{ fontSize: 14, color: '#374151' }}>
-            <div><strong>Email:</strong> {email || '—'}</div>
+          <div style={{ fontSize: 14, color: '#374151', marginBottom: 12 }}>
+            <div>
+              <strong>Email:</strong> {email || '—'}
+            </div>
           </div>
+
+          {/* Update email */}
+          <form
+            onSubmit={handleEmailUpdate}
+            style={{ display: 'grid', gap: 8, maxWidth: 420, marginTop: 8 }}
+          >
+            <label style={{ display: 'grid', gap: 4, fontSize: 14 }}>
+              <span>New email</span>
+              <input
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="you@example.com"
+                style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db' }}
+              />
+            </label>
+
+            <label style={{ display: 'grid', gap: 4, fontSize: 14 }}>
+              <span>Current password (for confirmation)</span>
+              <input
+                type="password"
+                value={currentPasswordForEmail}
+                onChange={(e) => setCurrentPasswordForEmail(e.target.value)}
+                style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db' }}
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={updatingEmail}
+              style={{
+                marginTop: 4,
+                padding: '0.6rem 1rem',
+                border: 'none',
+                borderRadius: 8,
+                background: '#2563eb',
+                color: '#fff',
+                cursor: 'pointer',
+                width: 'fit-content'
+              }}
+            >
+              {updatingEmail ? 'Updating email…' : 'Update email'}
+            </button>
+          </form>
+
+          {/* Change password */}
+          <form
+            onSubmit={handlePasswordChange}
+            style={{ display: 'grid', gap: 8, maxWidth: 420, marginTop: 20 }}
+          >
+            <h4 style={{ margin: '8px 0', fontSize: 15 }}>Change password</h4>
+
+            <label style={{ display: 'grid', gap: 4, fontSize: 14 }}>
+              <span>Current password</span>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db' }}
+              />
+            </label>
+
+            <label style={{ display: 'grid', gap: 4, fontSize: 14 }}>
+              <span>New password</span>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db' }}
+              />
+            </label>
+
+            <label style={{ display: 'grid', gap: 4, fontSize: 14 }}>
+              <span>Confirm new password</span>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db' }}
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={updatingPassword}
+              style={{
+                marginTop: 4,
+                padding: '0.6rem 1rem',
+                border: 'none',
+                borderRadius: 8,
+                background: '#2563eb',
+                color: '#fff',
+                cursor: 'pointer',
+                width: 'fit-content'
+              }}
+            >
+              {updatingPassword ? 'Updating password…' : 'Change password'}
+            </button>
+          </form>
         </section>
 
         {/* Notifications */}
@@ -123,7 +392,14 @@ export default function Profile() {
           </p>
 
           <div style={{ display: 'grid', gap: 8, maxWidth: 360 }}>
-            <label style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 8 }}>
+            <label
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr auto',
+                alignItems: 'center',
+                gap: 8
+              }}
+            >
               <span>Lead time (days):</span>
               <input
                 type="number"
@@ -137,7 +413,8 @@ export default function Profile() {
             </label>
 
             <small style={{ color: '#6b7280' }}>
-              You’ll be alerted <strong>{leadTimeDays}</strong> {leadTimeDays === 1 ? 'day' : 'days'} before each upcoming deadline.
+              You’ll be alerted <strong>{leadTimeDays}</strong>{' '}
+              {leadTimeDays === 1 ? 'day' : 'days'} before each upcoming deadline.
             </small>
           </div>
         </section>
@@ -152,7 +429,10 @@ export default function Profile() {
                 name="theme"
                 value="light"
                 checked={theme === 'light'}
-                onChange={(e) => { setTheme(e.target.value); applyTheme(e.target.value); }}
+                onChange={(e) => {
+                  setTheme(e.target.value);
+                  applyTheme(e.target.value);
+                }}
               />
               Light
             </label>
@@ -162,7 +442,10 @@ export default function Profile() {
                 name="theme"
                 value="dark"
                 checked={theme === 'dark'}
-                onChange={(e) => { setTheme(e.target.value); applyTheme(e.target.value); }}
+                onChange={(e) => {
+                  setTheme(e.target.value);
+                  applyTheme(e.target.value);
+                }}
               />
               Dark
             </label>
@@ -189,12 +472,21 @@ export default function Profile() {
             </button>
           </div>
           <small style={{ color: '#6b7280', display: 'block', marginTop: 6 }}>
-            The theme applies instantly for preview and is remembered. Click Save to update the server copy.
+            The theme applies instantly for preview and is remembered. Click Save to update the
+            server copy.
           </small>
         </section>
 
         {/* Actions / Status */}
-        <section style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <section
+          style={{
+            ...card,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            flexWrap: 'wrap'
+          }}
+        >
           <button
             onClick={save}
             disabled={saving}
