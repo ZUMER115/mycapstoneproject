@@ -26,6 +26,7 @@ export default function Profile() {
 
   const [msg, setMsg] = useState(null); // { type: 'ok' | 'err', text: string }
 
+  const API_BASE = 'http://localhost:5000';
 
   // ---- helpers ----
   const clampLead = (n) => {
