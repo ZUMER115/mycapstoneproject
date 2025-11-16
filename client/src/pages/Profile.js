@@ -4,7 +4,9 @@
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
 const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'; // dev fallback
+  process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+
+
 export default function Profile() {
   const [email, setEmail] = useState('');
   const [leadTimeDays, setLeadTimeDays] = useState(3);
@@ -23,8 +25,6 @@ export default function Profile() {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const [msg, setMsg] = useState(null); // { type: 'ok' | 'err', text: string }
-
-  const API_BASE = 'http://localhost:5000';
 
   // ---- helpers ----
   const clampLead = (n) => {
