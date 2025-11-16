@@ -1,10 +1,10 @@
 // src/pages/Profile.jsx
 // At top of the file, define a base (optional but nicer)
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'; // dev fallback
+
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
-
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'; // dev fallback
 export default function Profile() {
   const [email, setEmail] = useState('');
   const [leadTimeDays, setLeadTimeDays] = useState(3);
