@@ -1,14 +1,14 @@
 // src/services/reminderService.js
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const { fetchAllDeadlines } = require('../utils/deadlineScraper');
 const UserPreference = require('../models/userPreferenceModel');
-const UserPins = require('../models/UserPins'); // <-- NEW
+const UserPins = require('../models/UserPins');
 
-// --- mailer ---
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
-});
+require('dotenv').config();
+
+// --- Resend mailer ---
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_EMAIL = process.env.FROM_EMAIL || 'no-reply@kikoken.com';
 
 // --- helpers ---
 const toYMD = (d) => {
@@ -38,13 +38,19 @@ function toISODateSafe(raw) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
 
   let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) { const d = new Date(+m[3], +m[1]-1, +m[2]); return isNaN(d) ? null : toYMD(d); }
+  if (m) {
+    const d = new Date(+m[3], +m[1] - 1, +m[2]);
+    return isNaN(d) ? null : toYMD(d);
+  }
 
   m = s.match(/^([A-Za-z.]+)\s(\d{1,2}),\s*(\d{4})$/);
   if (m) {
     const key = m[1].toLowerCase().replace(/\.$/, '');
     const mi = MONTHS[key];
-    if (mi != null) { const d = new Date(+m[3], mi, +m[2]); return isNaN(d) ? null : toYMD(d); }
+    if (mi != null) {
+      const d = new Date(+m[3], mi, +m[2]);
+      return isNaN(d) ? null : toYMD(d);
+    }
   }
 
   // Range like "Sep 24–30, 2025" or "Aug 23–Sep 23, 2025" → first day
@@ -52,7 +58,10 @@ function toISODateSafe(raw) {
   if (m) {
     const mon1 = m[1].toLowerCase().replace(/\.$/, '');
     const mi1  = MONTHS[mon1];
-    if (mi1 != null) { const d = new Date(+m[5], mi1, +m[2]); return isNaN(d) ? null : toYMD(d); }
+    if (mi1 != null) {
+      const d = new Date(+m[5], mi1, +m[2]);
+      return isNaN(d) ? null : toYMD(d);
+    }
   }
 
   const dflt = new Date(s);
@@ -70,12 +79,22 @@ function inNextNDays(iso, n) {
 function formatListHTML(list) {
   return list.map(d => {
     const when = new Date(`${d.iso}T00:00:00`);
-    const nice = when.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-    return `<li style="margin:6px 0"><strong>${d.event}</strong> <em style="color:#666">(${d.category || 'other'})</em><br/><span>${nice}</span></li>`;
+    const nice = when.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+    return `
+      <li style="margin:6px 0">
+        <strong>${d.event}</strong>
+        <em style="color:#666"> (${d.category || 'other'})</em><br/>
+        <span>${nice}</span>
+      </li>
+    `;
   }).join('');
 }
 
-// ---- NEW: load user's pins and make a Set of stable keys ----
+// ---- load user's pins and make a Set of stable keys ----
 async function getUserPinKeySet(email) {
   const doc = await UserPins.findOne({ email }).lean();
   const set = new Set();
@@ -133,19 +152,29 @@ async function sendForUser(email, overrideLeadDays) {
     <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;font-size:14px;line-height:1.5;color:#111">
       <h2 style="margin:0 0 8px">Your upcoming pinned deadlines</h2>
       <p>Here are your <strong>pinned</strong> deadlines due in the next <strong>${lead}</strong> day(s):</p>
-      <ul style="padding-left:18px">${items.length ? formatListHTML(items) : '<li>No pinned items found in this window.</li>'}</ul>
+      <ul style="padding-left:18px">
+        ${items.length ? formatListHTML(items) : '<li>No pinned items found in this window.</li>'}
+      </ul>
       <p style="margin-top:16px;color:#666">— Sparely</p>
     </div>
   `;
 
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER,
+  const subject = `Sparely: ${items.length} pinned deadline(s) in next ${lead} day(s)`;
+
+  const data = await resend.emails.send({
+    from: FROM_EMAIL,
     to: email,
-    subject: `Sparely: ${items.length} pinned deadline(s) in next ${lead} day(s)`,
+    subject,
     html
   });
 
-  return { ok: true, email, lead_time_days: lead, count: items.length };
+  return {
+    ok: true,
+    email,
+    lead_time_days: lead,
+    count: items.length,
+    resendId: data?.id ?? null
+  };
 }
 
 module.exports = { previewForUser, sendForUser };
