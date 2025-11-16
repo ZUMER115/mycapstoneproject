@@ -19,7 +19,6 @@ const app = express();
 const allowedOrigins = [
   process.env.FRONTEND_URL,                        // e.g. https://your-frontend.com
   'https://mycapstoneproject-kd1i.onrender.com',   // your Render app URL
-  'https://your-frontend.vercel.app',
   'http://localhost:3000',                         // local React dev
   'http://localhost:5173'                          // if you ever use Vite
 ].filter(Boolean); // remove undefined/null entries
