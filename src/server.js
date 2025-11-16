@@ -20,7 +20,8 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,                        // e.g. https://your-frontend.com
   'https://mycapstoneproject-kd1i.onrender.com',   // your Render app URL
   'http://localhost:3000',                         // local React dev
-  'http://localhost:5173'                          // if you ever use Vite
+  'http://localhost:5173',                          // if you ever use Vite
+  'https://mycapstoneproject-tbo9.vercel.app'   
 ].filter(Boolean); // remove undefined/null entries
 
 app.use(
