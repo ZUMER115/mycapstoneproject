@@ -4,6 +4,10 @@
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
 
+const API_BASE =
+  process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+
+console.log('API_BASE at runtime:', API_BASE);
 export default function Profile() {
   const [email, setEmail] = useState('');
   const [leadTimeDays, setLeadTimeDays] = useState(3);
