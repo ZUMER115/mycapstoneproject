@@ -1,9 +1,6 @@
 // src/pages/Profile.jsx
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
-// At top of the file, define a base (optional but nicer)
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'; // dev fallback
 
 export default function Profile() {
   const [email, setEmail] = useState('');
@@ -74,7 +71,6 @@ export default function Profile() {
           setTheme(thm);
           applyTheme(thm);
         })
-        
         .catch(() => {})
         .finally(() => setLoading(false));
     } catch {
@@ -91,15 +87,16 @@ export default function Profile() {
     setSaving(true);
     setMsg(null);
     try {
-const res = await fetch(`${API_BASE}/api/preferences`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    email,
-    lead_time_days: clampLead(leadTimeDays),
-    theme,
-  }),
-});
+      const res = await fetch(`${API_BASE}/api/preferences`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          lead_time_days: clampLead(leadTimeDays),
+          theme
+        })
+      });
+
       const text = await res.text();
       let data;
       try {
