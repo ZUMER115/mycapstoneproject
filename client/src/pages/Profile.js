@@ -4,7 +4,7 @@
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
 const API_BASE =
-  process.env.REACT_APP_API_BASE_URL;
+  process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
 
 
 export default function Profile() {
@@ -25,6 +25,7 @@ export default function Profile() {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const [msg, setMsg] = useState(null); // { type: 'ok' | 'err', text: string }
+
 
   // ---- helpers ----
   const clampLead = (n) => {
