@@ -8,6 +8,7 @@ const API_BASE =
   process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
 
 console.log('API_BASE at runtime:', API_BASE);
+
 export default function Profile() {
   const [email, setEmail] = useState('');
   const [leadTimeDays, setLeadTimeDays] = useState(3);
@@ -27,7 +28,7 @@ export default function Profile() {
 
   const [msg, setMsg] = useState(null); // { type: 'ok' | 'err', text: string }
 
-  const API_BASE = 'http://localhost:5000';
+
 
   // ---- helpers ----
   const clampLead = (n) => {
