@@ -2,7 +2,7 @@
 const { Resend } = require('resend');
 const { fetchAllDeadlines } = require('../utils/deadlineScraper');
 const UserPreference = require('../models/userPreferenceModel');
-const UserPins = require('../models/UserPins');
+const Pin = require('../models/Pin');
 
 require('dotenv').config();
 
@@ -96,14 +96,21 @@ function formatListHTML(list) {
 
 // ---- load user's pins and make a Set of stable keys ----
 async function getUserPinKeySet(email) {
-  const doc = await UserPins.findOne({ email }).lean();
+  const e = String(email || '').toLowerCase();
+  if (!e) return new Set();
+
+  const docs = await Pin.find({ email: e }).lean();
   const set = new Set();
-  (doc?.pins || []).forEach(p => {
-    const iso = toISODateSafe(p.date);
+
+  (docs || []).forEach(p => {
+    // pins.js stores YYYY-MM-DD in dateISO
+    const iso = toISODateSafe(p.dateISO || p.date);
     if (!iso) return;
+
     const key = `${normalizeTitle(p.event)}|${iso}`;
     set.add(key);
   });
+
   return set;
 }
 
