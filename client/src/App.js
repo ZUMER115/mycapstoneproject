@@ -124,11 +124,14 @@ function AppFrame() {
             color: var(--text-color);
           }
 
-          /* Generic sections as widgets */
+          /* Generic sections as widgets (cards / widgets) */
           .App section {
-            background-color: var(--widget-bg);
-            color: var(--text-color);
+            /* Force widgets to use theme colors, even if inline styles say background: #fff */
+            background-color: var(--widget-bg) !important;
+            color: var(--text-color) !important;
+            border-color: rgba(255,255,255,0.15) !important;
           }
+
 
           /* Panels/menus use widget background in dark mode */
           [data-theme="dark"] .menu-panel,
