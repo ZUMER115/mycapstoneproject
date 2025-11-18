@@ -8,6 +8,7 @@ import Profile from './pages/Profile';
 import SearchPage from './pages/SearchPage';
 import Register from './Register';
 import TestPinsPage from './TestPinsPage';
+
 /**
  * Root: only provides the Router.
  * All hooks that depend on Router (useLocation) live in AppFrame.
@@ -96,14 +97,54 @@ function AppFrame() {
     color: '#fff',
     textDecoration: 'none',
     display: 'block',
-    backgroundColor: '#800080',
+    backgroundColor: '#800080'
   };
 
   return (
     <div className="App">
-      {/* Dropdown animation styles */}
+      {/* Global theme + dropdown animation styles */}
       <style>{`
-      
+          /* ---------- THEME COLORS ---------- */
+          :root {
+            --page-bg: #f9fafb;     /* light mode page background */
+            --widget-bg: #ffffff;   /* light mode widget/card background */
+            --text-color: #111827;  /* light mode text */
+          }
+
+          /* Dark mode: site background black, widgets dark gray, text black */
+          [data-theme="dark"] {
+            --page-bg: #000000;     /* whole site background */
+            --widget-bg: #1f2933;   /* widgets/cards dark gray */
+            --text-color: #000000;  /* text black as requested */
+          }
+
+          html, body, #root, .App {
+            margin: 0;
+            min-height: 100%;
+            background-color: var(--page-bg);
+            color: var(--text-color);
+          }
+
+          /* Generic sections as widgets */
+          .App section {
+            background-color: var(--widget-bg);
+            color: var(--text-color);
+          }
+
+          /* Panels/menus use widget background in dark mode */
+          [data-theme="dark"] .menu-panel,
+          [data-theme="dark"] .left-drawer .panel {
+            background-color: var(--widget-bg) !important;
+            color: var(--text-color) !important;
+          }
+
+          /* Try to keep text color consistent with theme even if inline styles exist */
+          [data-theme="dark"] .App,
+          [data-theme="dark"] .App * {
+            color: var(--text-color) !important;
+          }
+
+          /* Dropdown + existing styles */
           .menu-wrap { position: relative; }
           .menu-btn {
             padding: .5rem 1rem; background:#fff; border-radius: 6px; cursor:pointer;
@@ -137,50 +178,45 @@ function AppFrame() {
           @media (prefers-reduced-motion: reduce) {
             .menu-panel, .menu-btn, .chev { transition: none !important; animation: none !important; }
           }
-:root { --appbar-h: 56px; }
 
-/* Button square */
-.hamburger {
-  width: 40px;                 
-  height: 40px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  background: #800080;         
-  border: none;
-  border-radius: 10px;
-  outline: 3px solid #fff;     
-  outline-offset: 2px;
-  transition: background .16s ease, transform .12s ease;
+          :root { --appbar-h: 56px; }
 
-  gap: 0 !important;           /* ensure no extra gap is applied */
-}
+          /* Button square */
+          .hamburger {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: #800080;
+            border: none;
+            border-radius: 10px;
+            outline: 3px solid #fff;
+            outline-offset: 2px;
+            transition: background .16s ease, transform .12s ease;
+            gap: 0 !important;
+          }
 
-/* Hamburger bars */
-.hamburger .bar {
-  width: 20px;                 
-  height: 2px;                 
-  background: #fff;            
-  border-radius: 1px;
-  transition: background .16s ease;
-}
-.hamburger .bar + .bar {
-  margin-top: 4px !important;  /* force tighter spacing */
-}
+          /* Hamburger bars */
+          .hamburger .bar {
+            width: 20px;
+            height: 2px;
+            background: #fff;
+            border-radius: 1px;
+            transition: background .16s ease;
+          }
+          .hamburger .bar + .bar {
+            margin-top: 4px !important;
+          }
 
-/* Hover: invert colors */
-.hamburger:hover { background: #fff; }
-.hamburger:hover .bar { background: #111; }
+          /* Hover: invert colors */
+          .hamburger:hover { background: #fff; }
+          .hamburger:hover .bar { background: #111; }
 
-/* Press feedback */
-.hamburger:active { transform: translateY(1px); }
-
-
-
-
-
+          /* Press feedback */
+          .hamburger:active { transform: translateY(1px); }
 
           .left-drawer {
             position: fixed;
@@ -228,81 +264,75 @@ function AppFrame() {
             width: 100%; height: 48px; border-radius: 10px; border: none;
             background: #cc0000; color: #fff; font-weight: 700; cursor: pointer;
           }
-            /* === Purple sidebar + hamburger-like tiles === */
-/* === Sidebar restyle === */
-.left-drawer .panel {
-  background: #1e1e2f; /* dark navy */
-  border-right: 1px solid rgba(255,255,255,.18);
-}
 
-/* navigation label */
-.left-drawer .panel h3,
-.left-drawer .panel .nav-label,
-.left-drawer .panel .drawer-label {
-  color: #fff !important;  /* force white */
-}
+          /* Sidebar restyle */
+          .left-drawer .panel {
+            background: #1e1e2f; /* dark navy by default (overridden in dark via var above) */
+            border-right: 1px solid rgba(255,255,255,.18);
+          }
 
-/* tiles: navy by default */
-.drawer-tile {
-  background: #1e1e2f;
-  color: #fff;
-  text-decoration: none;
-  border: none;
-  outline: 2px solid #fff;
-  outline-offset: 2px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.2);
-  transition: background .16s ease, color .16s ease, transform .12s ease;
-}
+          .left-drawer .panel h3,
+          .left-drawer .panel .nav-label,
+          .left-drawer .panel .drawer-label {
+            color: #fff !important;
+          }
 
-/* hover/focus */
-.drawer-tile:hover,
-.drawer-tile:focus-visible {
-  background: #ffffff;
-  color: #111;
-}
+          .drawer-tile {
+            background: #1e1e2f;
+            color: #fff;
+            text-decoration: none;
+            border: none;
+            outline: 2px solid #fff;
+            outline-offset: 2px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.2);
+            transition: background .16s ease, color .16s ease, transform .12s ease;
+          }
 
-/* pressed */
-.drawer-tile:active { transform: translateY(1px); }
+          .drawer-tile:hover,
+          .drawer-tile:focus-visible {
+            background: #ffffff;
+            color: #111;
+          }
 
-/* active route */
-.drawer-tile.active {
-  background: #ffffff;
-  color: #111;
-}
-/* White "Navigation" label + nicer divider on the dark panel */
-.left-drawer .panel .drawer-header{
-  padding: 14px;
-  border-bottom: 1px solid rgba(255,255,255,.18);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #fff;                     /* makes the wrapper text white */
-}
-.left-drawer .panel .drawer-header strong{
-  color: #fff;                      /* ensures the word "Navigation" is white */
-  font-size: 16px;
-  font-weight: 700;
-}
+          .drawer-tile:active { transform: translateY(1px); }
 
-/* Much larger spacing between tiles */
-.drawer-grid{
-  gap: 28px !important;             /* was 14px */
-  padding: 22px 16px !important;    /* a bit more breathing room */
-}
+          .drawer-tile.active {
+            background: #ffffff;
+            color: #111;
+          }
 
-/* (Optional) slight height bump so bigger gaps feel intentional */
-.drawer-tile{
-  height: 104px;                    /* was 96px */
-}
+          .left-drawer .panel .drawer-header{
+            padding: 14px;
+            border-bottom: 1px solid rgba(255,255,255,.18);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+          }
+          .left-drawer .panel .drawer-header strong{
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+          }
 
+          .drawer-grid{
+            gap: 28px !important;
+            padding: 22px 16px !important;
+          }
 
+          .drawer-tile{
+            height: 104px;
+          }
         `}</style>
 
       {/* Top Navigation (persistent) */}
       <div
         style={{
-          position: 'sticky', top: 0, zIndex: 2000,
-          display: 'flex', alignItems: 'center',
+          position: 'sticky',
+          top: 0,
+          zIndex: 2000,
+          display: 'flex',
+          alignItems: 'center',
           height: 'var(--appbar-h)',
           padding: '0 12px',
           backgroundColor: '#800080',
@@ -310,38 +340,35 @@ function AppFrame() {
         }}
       >
         {/* LEFT: Hamburger toggles the left drawer */}
-{token ? (
-  <button
-    aria-label={navOpen ? 'Close menu' : 'Open menu'}
-    className="hamburger"
-    onClick={() => setNavOpen(o => !o)}
-    title={navOpen ? 'Close navigation' : 'Open navigation'}
-    style={{ marginRight: 10 }}
-  >
-    {/* Only bars now */}
-    <span className="bar" />
-    <span className="bar" />
-    <span className="bar" />
-  </button>
-) : (
-  // keep layout aligned when logged out
-  <span style={{ width: 44, height: 44, display: 'inline-block' }} />
-)}
-
+        {token ? (
+          <button
+            aria-label={navOpen ? 'Close menu' : 'Open menu'}
+            className="hamburger"
+            onClick={() => setNavOpen((o) => !o)}
+            title={navOpen ? 'Close navigation' : 'Open navigation'}
+            style={{ marginRight: 10 }}
+          >
+            <span className="bar" />
+            <span className="bar" />
+            <span className="bar" />
+          </button>
+        ) : (
+          // keep layout aligned when logged out
+          <span style={{ width: 44, height: 44, display: 'inline-block' }} />
+        )}
 
         {/* TITLE pushed right by the hamburger */}
         <h2
-  style={{
-    color: '#fff',
-    margin: 0,
-    marginLeft: 8,         // pushes text a bit right
-    fontSize: 22,          // slightly bigger
-    fontWeight: 900        // extra bold
-  }}
->
-  Sparely
-</h2>
-
+          style={{
+            color: '#fff',
+            margin: 0,
+            marginLeft: 8,
+            fontSize: 22,
+            fontWeight: 900
+          }}
+        >
+          Sparely
+        </h2>
 
         {/* RIGHT: existing dropdown / auth buttons */}
         <div style={{ marginLeft: 'auto' }}>
@@ -375,7 +402,10 @@ function AppFrame() {
                     Profile
                   </Link>
                   <button
-                    onClick={() => { handleLogout(); setDropdownOpen(false); }}
+                    onClick={() => {
+                      handleLogout();
+                      setDropdownOpen(false);
+                    }}
                     style={{ ...linkStyle, background: '#cc0000', border: 'none', width: '100%', textAlign: 'left' }}
                     role="menuitem"
                   >
@@ -386,8 +416,12 @@ function AppFrame() {
             </div>
           ) : (
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <Link to="/" style={{ ...linkStyle, backgroundColor: '#4CAF50' }}>Login</Link>
-              <Link to="/register" style={{ ...linkStyle, backgroundColor: '#2196F3' }}>Register</Link>
+              <Link to="/" style={{ ...linkStyle, backgroundColor: '#4CAF50' }}>
+                Login
+              </Link>
+              <Link to="/register" style={{ ...linkStyle, backgroundColor: '#2196F3' }}>
+                Register
+              </Link>
             </div>
           )}
         </div>
@@ -409,43 +443,41 @@ function AppFrame() {
             aria-label="Main navigation"
             onClick={(e) => e.stopPropagation()}
           >
-<div className="drawer-header">
-  <strong>Navigation</strong>
-</div>
+            <div className="drawer-header">
+              <strong>Navigation</strong>
+            </div>
 
-
-{/* Big tiles */}
-<nav className="drawer-grid">
-  <Link
-    to="/search"
-    className={`drawer-tile ${location.pathname.startsWith('/search') ? 'active' : ''}`}
-    onClick={() => setNavOpen(false)}
-  >
-     Search
-  </Link>
-  <Link
-    to="/dashboard"
-    className={`drawer-tile ${location.pathname.startsWith('/dashboard') ? 'active' : ''}`}
-    onClick={() => setNavOpen(false)}
-  >
-     Dashboard
-  </Link>
-  <Link
-    to="/calendar"
-    className={`drawer-tile ${location.pathname.startsWith('/calendar') ? 'active' : ''}`}
-    onClick={() => setNavOpen(false)}
-  >
-     Calendar
-  </Link>
-  <Link
-    to="/profile"
-    className={`drawer-tile ${location.pathname.startsWith('/profile') ? 'active' : ''}`}
-    onClick={() => setNavOpen(false)}
-  >
-     Profile
-  </Link>
-</nav>
-
+            {/* Big tiles */}
+            <nav className="drawer-grid">
+              <Link
+                to="/search"
+                className={`drawer-tile ${location.pathname.startsWith('/search') ? 'active' : ''}`}
+                onClick={() => setNavOpen(false)}
+              >
+                Search
+              </Link>
+              <Link
+                to="/dashboard"
+                className={`drawer-tile ${location.pathname.startsWith('/dashboard') ? 'active' : ''}`}
+                onClick={() => setNavOpen(false)}
+              >
+                Dashboard
+              </Link>
+              <Link
+                to="/calendar"
+                className={`drawer-tile ${location.pathname.startsWith('/calendar') ? 'active' : ''}`}
+                onClick={() => setNavOpen(false)}
+              >
+                Calendar
+              </Link>
+              <Link
+                to="/profile"
+                className={`drawer-tile ${location.pathname.startsWith('/profile') ? 'active' : ''}`}
+                onClick={() => setNavOpen(false)}
+              >
+                Profile
+              </Link>
+            </nav>
 
             <div className="drawer-logout">
               <button
