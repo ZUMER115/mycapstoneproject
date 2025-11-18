@@ -271,7 +271,21 @@ export default function CalendarPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [selected]);
 
-  if (loading) return <div style={{ padding: '1rem' }}>Loading calendar…</div>;
+  if (loading) {
+  return (
+    <div
+      style={{
+        padding: '1rem',
+        minHeight: '100vh',
+        background: 'var(--page-bg)',
+        color: 'var(--text-color)'
+      }}
+    >
+      Loading calendar…
+    </div>
+  );
+}
+
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -316,22 +330,35 @@ export default function CalendarPage() {
     }
   }
 
-  return (
-    <div style={{ height: '100vh', boxSizing: 'border-box', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+return (
+  <div
+    style={{
+      height: '100vh',
+      boxSizing: 'border-box',
+      padding: '1rem',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.75rem',
+      background: 'var(--page-bg)',       // 🔹 same as other pages
+      color: 'var(--text-color)'
+    }}
+  >
+
       {/* Top controls */}
       <div
-        style={{
-          display: 'flex',
-          gap: '0.5rem',
-          alignItems: 'center',
-          padding: '0.5rem',
-          border: '1px solid #e5e7eb',
-          borderRadius: 8,
-          background: '#fff',
-          position: 'sticky',
-          top: 8,
-          zIndex: 5
-        }}
+  style={{
+    display: 'flex',
+    gap: '0.5rem',
+    alignItems: 'center',
+    padding: '0.5rem',
+    border: '1px solid rgba(148,163,184,0.4)',  // 🔹 softer neutral border
+    borderRadius: 8,
+    background: 'var(--widget-bg)',             // 🔹 dark gray widget
+    position: 'sticky',
+    top: 8,
+    zIndex: 5
+  }}
+
       >
         <label htmlFor="view" style={{ fontWeight: 600 }}>View:</label>
         <select id="view" value={view} onChange={(e) => setView(e.target.value)} style={{ padding: '0.4rem' }}>
@@ -358,32 +385,93 @@ export default function CalendarPage() {
       </div>
 
       {/* Full Calendar */}
-      <div style={{ flex: 1, minHeight: 0, background:'#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '0.5rem' }}>
+      {/* Full Calendar */}
+<div
+  style={{
+    flex: 1,
+    minHeight: 0,
+    background: 'var(--widget-bg)',              // 🔹 dark gray widget
+    border: '1px solid rgba(148,163,184,0.4)',
+    borderRadius: 8,
+    padding: '0.5rem'
+  }}
+>
+
 <style>{`
-  /* Header + day numbers (unchanged, keep if you like) */
+  /* ---------- DARK THEME FOR FULLCALENDAR ---------- */
+  /* Base colors when data-theme="dark" is set on html/root */
+  [data-theme="dark"] .fc {
+    --fc-border-color: rgba(148,163,184,0.35);
+    --fc-bg-main: #111827;
+    --fc-bg-header: #020617;
+    --fc-text-main: #e5e7eb;
+    --fc-text-sub: #9ca3af;
+  }
+
+  /* Calendar background + text */
+  [data-theme="dark"] .fc,
+  [data-theme="dark"] .fc .fc-view-harness,
+  [data-theme="dark"] .fc .fc-scrollgrid {
+    background-color: var(--widget-bg);
+    color: var(--fc-text-main);
+  }
+
+  /* Month header row */
+  [data-theme="dark"] .fc .fc-col-header-cell {
+    background-color: var(--fc-bg-header);
+  }
+  [data-theme="dark"] .fc .fc-col-header-cell-cushion,
+  [data-theme="dark"] .fc .fc-toolbar-title {
+    color: var(--fc-text-main);
+  }
+
+  /* Day cells */
+  [data-theme="dark"] .fc .fc-daygrid-day,
+  [data-theme="dark"] .fc .fc-daygrid-day-frame {
+    background-color: var(--fc-bg-main);
+  }
+  [data-theme="dark"] .fc .fc-daygrid-day-number {
+    color: var(--fc-text-main);
+  }
+
+  /* Today highlight */
+  [data-theme="dark"] .fc .fc-day-today {
+    background-color: rgba(250, 204, 21, 0.08);
+  }
+
+  /* Toolbar buttons */
+  [data-theme="dark"] .fc .fc-button-primary {
+    background-color: #1f2937;
+    border-color: #4b5563;
+    color: var(--fc-text-main);
+  }
+  [data-theme="dark"] .fc .fc-button-primary:hover {
+    background-color: #374151;
+  }
+
+  /* Header + day numbers (light + dark sizes) */
   .fc .fc-toolbar-title { font-size: 1.4rem; }
   .fc .fc-col-header-cell-cushion { font-size: 1rem; font-weight: 700; padding: 6px 0; }
   .fc .fc-daygrid-day-number { font-size: 1rem; font-weight: 700; }
 
   /* Give month cells comfy height so multi-line pills fit */
-  .fc .fc-daygrid-day, .fc .fc-daygrid-day-frame { min-height: 160px; }
+  .fc .fc-daygrid-day,
+  .fc .fc-daygrid-day-frame { min-height: 160px; }
 
-  /* --- SPACING BETWEEN EVENTS --- */
-  /* Add vertical gap between stacked events */
-  .fc .fc-daygrid-event-harness { margin-bottom: 8px; }    /* <-- increase/decrease to taste */
-  /* Small top inset so the first event isn't glued to the top border */
+  /* Spacing between stacked events */
+  .fc .fc-daygrid-event-harness { margin-bottom: 8px; }
   .fc .fc-daygrid-day-events { margin-top: 4px; }
 
   /* Event pill container */
   .fc .fc-daygrid-event {
-    padding: 0;                 /* inner span handles padding */
+    padding: 0;
     border-radius: 8px;
     overflow: hidden;
     box-sizing: border-box;
   }
 
-  /* Title inside each event (used by eventContent render) */
-  .fc-evt-wrap{
+  /* Title inside each event (renderEventContent span) */
+  .fc-evt-wrap {
     display: block;
     max-width: 100%;
     white-space: normal;
@@ -391,19 +479,22 @@ export default function CalendarPage() {
     word-break: break-word;
     hyphens: auto;
 
-    font-size: 18.5px;          /* bigger text */
-    font-weight: 600;           /* less bold than 700; use 500 if you want even lighter */
+    font-size: 18.5px;
+    font-weight: 600;
     line-height: 1.28;
-    padding: 6px 10px;          /* a little more breathing room */
+    padding: 6px 10px;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
-  /* Optional: make list/week views look consistent */
-  .fc .fc-list-event-title, .fc .fc-timegrid-event .fc-event-title {
-    font-size: 16px; font-weight: 600;
+  /* List/week title consistency */
+  .fc .fc-list-event-title,
+  .fc .fc-timegrid-event .fc-event-title {
+    font-size: 16px;
+    font-weight: 600;
   }
 `}</style>
+
 
 
 
