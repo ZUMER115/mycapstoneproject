@@ -102,8 +102,7 @@ function AppFrame() {
 
   return (
     <div className="App">
-      {/* Global theme + dropdown animation styles */}
-      <style>{`
+      {/* Global theme + dropdown animation styles */}<style>{`
           /* ---------- THEME COLORS ---------- */
           :root {
             --page-bg: #f9fafb;     /* light mode page background */
@@ -111,11 +110,11 @@ function AppFrame() {
             --text-color: #111827;  /* light mode text */
           }
 
-          /* Dark mode: site background black, widgets dark gray, text black */
+          /* Dark mode: very dark gray bg, lighter gray widgets, white text */
           [data-theme="dark"] {
-            --page-bg: #000000;     /* whole site background */
-            --widget-bg: #1f2933;   /* widgets/cards dark gray */
-            --text-color: #000000;  /* text black as requested */
+            --page-bg: #121212;     /* whole site background */
+            --widget-bg: #1e1e1e;   /* widgets/cards dark gray */
+            --text-color: #ffffff;  /* text white */
           }
 
           html, body, #root, .App {
@@ -138,10 +137,17 @@ function AppFrame() {
             color: var(--text-color) !important;
           }
 
-          /* Try to keep text color consistent with theme even if inline styles exist */
+          /* Ensure text follows theme even if inline styles exist */
           [data-theme="dark"] .App,
           [data-theme="dark"] .App * {
             color: var(--text-color) !important;
+          }
+
+          /* Inputs in dark mode */
+          [data-theme="dark"] input {
+            background-color: #2a2a2a !important;
+            color: #ffffff !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
           }
 
           /* Dropdown + existing styles */
@@ -267,7 +273,7 @@ function AppFrame() {
 
           /* Sidebar restyle */
           .left-drawer .panel {
-            background: #1e1e2f; /* dark navy by default (overridden in dark via var above) */
+            background: #1e1e2f; /* dark navy by default (still OK in light; overridden by dark widget-bg above when needed) */
             border-right: 1px solid rgba(255,255,255,.18);
           }
 
@@ -324,6 +330,7 @@ function AppFrame() {
             height: 104px;
           }
         `}</style>
+
 
       {/* Top Navigation (persistent) */}
       <div
