@@ -50,15 +50,30 @@ function toISODateSafe(raw) {
   return isNaN(dflt) ? null : toYMD(dflt);
 }
 
+// 🔹 Darker date badge like Dashboard
 const DATE_BADGE_STYLE = {
   fontSize: 14,
   fontWeight: 700,
-  background: '#eef2ff',
-  color: '#4338ca',
-  border: '1px solid #c7d2fe',
+  background: '#1d4ed8',      // darker blue
+  color: '#ffffff',           // white text
+  border: '1px solid #1e40af',
   padding: '6px 10px',
   borderRadius: 999,
   whiteSpace: 'nowrap',
+  textAlign: 'center'
+};
+
+// 🔹 Dark pin badge so it shows on dark widgets
+const PIN_BADGE_STYLE = {
+  border: '1px solid #4b5563',
+  padding: '0.25rem 0.6rem',
+  borderRadius: 999,
+  cursor: 'pointer',
+  background: '#111827',
+  color: '#ffffff',
+  fontSize: 13,
+  fontWeight: 600,
+  minWidth: 70,
   textAlign: 'center'
 };
 
@@ -232,20 +247,34 @@ const togglePinKey = (k) =>
     });
   };
 
-  return (
-    <div style={{ padding: '1.25rem', display:'grid', gap:'1rem' }}>
+return (
+  <div
+    style={{
+      padding: '1.25rem',
+      display: 'grid',
+      gap: '1rem',
+      minHeight: '100vh',
+      background: 'var(--page-bg)'   // 🔹 match app page background
+    }}
+  >
+
 <style>{`
+  /* 🔹 Deadline rows styled for dark widgets */
   .deadline-row {
+    --bg: transparent;
+    --ring: transparent;
+    background: var(--bg);
+    border-left: 4px solid var(--ring);
     border-radius: 8px;
     transition: background-color .12s ease, box-shadow .12s ease;
   }
   .deadline-row:hover {
-    background: #eaf2ff;
-    box-shadow: 0 0 0 1px #dbeafe inset;
+    background: #1f2933;
+    box-shadow: 0 0 0 1px #4b5563 inset;
   }
   .deadline-row:focus-within {
-    background: #eaf2ff;
-    box-shadow: 0 0 0 2px #bfdbfe inset;
+    background: #1f2933;
+    box-shadow: 0 0 0 2px #60a5fa inset;
   }
 
   .pin-toast {
@@ -272,6 +301,7 @@ const togglePinKey = (k) =>
     100% { opacity: 0; transform: translate(-50%, -8px); }
   }
 `}</style>
+
 {toastMsg && (
   <div className="pin-toast" key={toastSeq} role="status" aria-live="polite">
     {toastMsg}
@@ -281,7 +311,18 @@ const togglePinKey = (k) =>
       <h1 style={{ margin: 0 }}>Search Deadlines</h1>
 
       {/* Controls */}
-      <div style={{ background:'#fff', border:'1px solid #e6e8eb', borderRadius:12, padding:'0.75rem', display:'grid', gap:12 }}>
+      {/* Controls */}
+<div
+  style={{
+    background: 'var(--widget-bg)',                          // 🔹 themed widget
+    border: '1px solid rgba(148,163,184,0.4)',
+    borderRadius: 12,
+    padding: '0.75rem',
+    display: 'grid',
+    gap: 12
+  }}
+>
+
         {/* Search */}
         <div>
           <label style={{ display:'block', fontWeight:700, marginBottom:6 }}>Search</label>
@@ -342,7 +383,16 @@ const togglePinKey = (k) =>
       </div>
 
       {/* Results list */}
-      <div style={{ background:'#fff', border:'1px solid #e6e8eb', borderRadius:12, padding:'0.75rem' }}>
+      {/* Results list */}
+<div
+  style={{
+    background: 'var(--widget-bg)',                          // 🔹 themed widget
+    border: '1px solid rgba(148,163,184,0.4)',
+    borderRadius: 12,
+    padding: '0.75rem'
+  }}
+>
+
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <h3 style={{ marginTop: 0 }}>
             {includePast ? 'All Deadlines' : 'Upcoming Application Deadlines'}
@@ -364,7 +414,7 @@ const togglePinKey = (k) =>
   className="deadline-row"             // ⬅️ add this
   style={{
     padding: '1rem 12px',              // ⬅️ was '1rem 0' — adds side breathing room
-    borderTop: '1px solid #eee',
+    borderTop: '1px solid #4b5563',
     display: 'flex',
     gap: '0.75rem',
     alignItems: 'center',
@@ -387,14 +437,15 @@ const togglePinKey = (k) =>
                       <span style={DATE_BADGE_STYLE}>
                         {iso ? new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' }) : '—'}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => togglePinKey(k)}
-                        style={{ border: '1px solid #ccc', padding: '0.25rem 0.5rem', fontSize: "1.5rem", borderRadius: 6, cursor: 'pointer' }}
-                        title={isPinned ? 'Unpin' : 'Pin'}
-                      >
-                        {isPinned ? '★' : '☆'} 
-                      </button>
+<button
+  type="button"
+  onClick={() => togglePinKey(k)}
+  style={PIN_BADGE_STYLE}                     // 🔹 reuse dark pill
+  title={isPinned ? 'Unpin' : 'Pin'}
+>
+  {isPinned ? '★ Unpin' : '☆ Pin'}
+</button>
+
                     </div>
                   </li>
                 );
