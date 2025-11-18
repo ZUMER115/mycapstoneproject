@@ -615,10 +615,31 @@ fetch(url)
   }, [includePast, rangeFilter, groupedView, firstUpcomingIdx, filteredDeadlines]);
 
   /* ===== layout ===== */
-  const pageStyle = { padding: '1.25rem', background: '#f7f8fa', minHeight: '100vh' };
-  const gridStyle = { display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) 1fr', gap: '1.25rem', alignItems: 'start' };
-  const card      = { background: '#fff', border: '1px solid #e6e8eb', borderRadius: 12, padding: '1rem' };
+  /* ===== layout ===== */
+  const pageStyle = {
+    padding: '1.25rem',
+    minHeight: '100vh',
+    // Use CSS variable so light/dark theme applies automatically
+    background: 'var(--page-bg)'
+  };
+
+  const gridStyle = {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(220px, 280px) 1fr',
+    gap: '1.25rem',
+    alignItems: 'start'
+  };
+
+  const card = {
+    // Widget background (white in light mode, dark gray in dark mode)
+    background: 'var(--widget-bg)',
+    border: '1px solid rgba(148,163,184,0.4)', // soft neutral border
+    borderRadius: 12,
+    padding: '1rem'
+  };
+
   const sectionTitle = { margin: '0 0 .5rem 0', fontSize: '1.2rem' };
+
 // ---- Campus contacts (left column) ----
 const CONTACTS = [
   { name: 'Financial Aid',     phone: '425-352-5240', email: 'uwbfaid@uw.edu' },
@@ -631,14 +652,15 @@ const telHref = (s) => `tel:${String(s).replace(/[^\d+]/g, '')}`;
 const ContactsCard = () => {
   const BTN = {
     padding: '10px 14px',          // bigger buttons
-    border: '1px solid #d1d5db',
+    border: '1px solid rgba(148,163,184,0.5)',
     borderRadius: 10,
-    background: '#fff',
+    background: 'var(--widget-bg)', // matches card color in both themes
     textDecoration: 'none',
     fontSize: 15,
     fontWeight: 600,
     cursor: 'pointer'
   };
+
 
   return (
     <div style={card}>
@@ -1017,7 +1039,16 @@ const ContactsCard = () => {
           </div>
 
           {/* Stats with clickable ranges */}
-          <div style={{ background: '#fff', border: '1px solid #e6e8eb', borderRadius: 12, padding: '0.75rem' }}>
+                    {/* Stats with clickable ranges */}
+          <div
+            style={{
+              background: 'var(--widget-bg)',
+              border: '1px solid rgba(148,163,184,0.4)',
+              borderRadius: 12,
+              padding: '0.75rem'
+            }}
+          >
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
               <strong>At a glance</strong>
               <div style={{ display:'flex', gap:10 }}>
@@ -1161,8 +1192,17 @@ const ContactsCard = () => {
             <div style={card}>
               <h3 style={{ marginTop: 0 }}>Deadlines by Category</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px', marginTop: 8 }}>
-                {Object.keys(grouped).sort().map(cat => (
-                  <div key={cat} style={{ border: '1px solid #eee', borderRadius: 8, padding: '12px', background: '#fff' }}>
+                                {Object.keys(grouped).sort().map(cat => (
+                  <div
+                    key={cat}
+                    style={{
+                      border: '1px solid rgba(148,163,184,0.4)',
+                      borderRadius: 8,
+                      padding: '12px',
+                      background: 'var(--widget-bg)'
+                    }}
+                  >
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                       <h4 style={{ margin: 0, fontSize: '1.05rem', textTransform: 'capitalize' }}>{cat.replace('-', ' ')}</h4>
                       <span style={{ fontSize: 12, color: '#666' }}>{grouped[cat].length}</span>
