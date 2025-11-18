@@ -149,17 +149,18 @@ export default function Profile() {
     setUpdatingEmail(true);
     try {
       const token = getToken();
-      const res = await fetch(`${API_BASE}/api/auth/change-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({
-          currentPassword: currentPasswordForEmail,
-          newEmail: newEmail.trim()
-        })
-      });
+const res = await fetch(`${API_BASE}/api/auth/email`, {
+  method: 'PUT',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: token ? `Bearer ${token}` : ''
+  },
+  body: JSON.stringify({
+    currentPassword: currentPasswordForEmail,
+    newEmail: newEmail.trim()
+  })
+});
+
 
       const text = await res.text();
       let data;
@@ -224,17 +225,17 @@ export default function Profile() {
     setUpdatingPassword(true);
     try {
       const token = getToken();
-      const res = await fetch(`${API_BASE}/api/auth/change-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({
-          currentPassword,
-          newPassword
-        })
-      });
+const res = await fetch(`${API_BASE}/api/auth/change-password`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: token ? `Bearer ${token}` : ''
+  },
+  body: JSON.stringify({
+    currentPassword,
+    newPassword
+  })
+});
 
       const text = await res.text();
       let data;
