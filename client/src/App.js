@@ -1,6 +1,13 @@
 // src/App.js
 import { useEffect, useRef, useState } from 'react';
-import { Link, Navigate, Route, BrowserRouter as Router, Routes, useLocation } from 'react-router-dom';
+import {
+  Link,
+  Navigate,
+  Route,
+  BrowserRouter as Router,
+  Routes,
+  useLocation
+} from 'react-router-dom';
 import Dashboard from './Dashboard';
 import Login from './Login';
 import CalendarPage from './pages/CalendarPage';
@@ -24,7 +31,6 @@ function App() {
 function AppFrame() {
   const location = useLocation();
 
-  // moved inside component (no top-level hooks!)
   const [navOpen, setNavOpen] = useState(false);
   const [token, setToken] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -35,7 +41,9 @@ function AppFrame() {
   const buttonRef = useRef(null);
 
   // Theme is controlled from Profile; we still mirror it here for page loads
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [theme, setTheme] = useState(
+    localStorage.getItem('theme') || 'light'
+  );
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -46,7 +54,9 @@ function AppFrame() {
     const stored = localStorage.getItem('token');
     if (stored) setToken(stored);
 
-    const currentTheme = document.documentElement.dataset.theme || localStorage.getItem('theme');
+    const currentTheme =
+      document.documentElement.dataset.theme ||
+      localStorage.getItem('theme');
     if (currentTheme && currentTheme !== theme) setTheme(currentTheme);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -55,7 +65,7 @@ function AppFrame() {
   useEffect(() => {
     if (dropdownOpen) setRenderMenu(true);
     else {
-      const t = setTimeout(() => setRenderMenu(false), 160); // match animation duration
+      const t = setTimeout(() => setRenderMenu(false), 160);
       return () => clearTimeout(t);
     }
   }, [dropdownOpen]);
@@ -102,20 +112,23 @@ function AppFrame() {
 
   return (
     <div className="App">
-      {/* Global theme + dropdown animation styles */}<style>{`
+      {/* Global theme + dropdown animation styles */}
+      <style>{`
           /* ---------- THEME COLORS ---------- */
-          :root {
-            --page-bg: #f9fafb;     /* light mode page background */
-            --widget-bg: #ffffff;   /* light mode widget/card background */
-            --text-color: #111827;  /* light mode text */
-          }
+:root {
+  --page-bg: #f9fafb;        /* light mode page background */
+  --widget-bg: #ffffff;      /* main widget/card background */
+  --widget-sub-bg: #f3f4f6;  /* inner tiles (campus contact cards, etc.) */
+  --text-color: #111827;     /* light mode text */
+}
 
-          /* Dark mode: very dark gray bg, lighter gray widgets, white text */
-          [data-theme="dark"] {
-            --page-bg: #121212;     /* whole site background */
-            --widget-bg: #1e1e1e;   /* widgets/cards dark gray */
-            --text-color: #ffffff;  /* text white */
-          }
+/* Dark mode: very dark gray bg, lighter gray widgets, white text */
+[data-theme="dark"] {
+  --page-bg: #121212;        /* whole site background */
+  --widget-bg: #1e1e1e;      /* main widgets/cards dark gray */
+  --widget-sub-bg: #262626;  /* inner tiles slightly lighter than widget-bg */
+  --text-color: #ffffff;     /* text white */
+}
 
           html, body, #root, .App {
             margin: 0;
@@ -126,34 +139,28 @@ function AppFrame() {
 
           /* Generic sections as widgets (cards / widgets) */
           .App section {
-            /* Force widgets to use theme colors, even if inline styles say background: #fff */
             background-color: var(--widget-bg) !important;
             color: var(--text-color) !important;
             border-color: rgba(255,255,255,0.15) !important;
           }
 
-
-          /* Panels/menus use widget background in dark mode */
           [data-theme="dark"] .menu-panel,
           [data-theme="dark"] .left-drawer .panel {
             background-color: var(--widget-bg) !important;
             color: var(--text-color) !important;
           }
 
-          /* Ensure text follows theme even if inline styles exist */
           [data-theme="dark"] .App,
           [data-theme="dark"] .App * {
             color: var(--text-color) !important;
           }
 
-          /* Inputs in dark mode */
           [data-theme="dark"] input {
             background-color: #2a2a2a !important;
             color: #ffffff !important;
             border: 1px solid rgba(255,255,255,0.2) !important;
           }
 
-          /* Dropdown + existing styles */
           .menu-wrap { position: relative; }
           .menu-btn {
             padding: .5rem 1rem; background:#fff; border-radius: 6px; cursor:pointer;
@@ -190,7 +197,6 @@ function AppFrame() {
 
           :root { --appbar-h: 56px; }
 
-          /* Button square */
           .hamburger {
             width: 40px;
             height: 40px;
@@ -208,7 +214,6 @@ function AppFrame() {
             gap: 0 !important;
           }
 
-          /* Hamburger bars */
           .hamburger .bar {
             width: 20px;
             height: 2px;
@@ -220,11 +225,8 @@ function AppFrame() {
             margin-top: 4px !important;
           }
 
-          /* Hover: invert colors */
           .hamburger:hover { background: #fff; }
           .hamburger:hover .bar { background: #111; }
-
-          /* Press feedback */
           .hamburger:active { transform: translateY(1px); }
 
           .left-drawer {
@@ -274,9 +276,8 @@ function AppFrame() {
             background: #cc0000; color: #fff; font-weight: 700; cursor: pointer;
           }
 
-          /* Sidebar restyle */
           .left-drawer .panel {
-            background: #1e1e2f; /* dark navy by default (still OK in light; overridden by dark widget-bg above when needed) */
+            background: #1e1e2f;
             border-right: 1px solid rgba(255,255,255,.18);
           }
 
@@ -334,23 +335,22 @@ function AppFrame() {
           }
         `}</style>
 
-
-      {/* Top Navigation (persistent) */}
-      <div
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 2000,
-          display: 'flex',
-          alignItems: 'center',
-          height: 'var(--appbar-h)',
-          padding: '0 12px',
-          backgroundColor: '#800080',
-          borderBottom: '1px solid rgba(255,255,255,.15)'
-        }}
-      >
-        {/* LEFT: Hamburger toggles the left drawer */}
-        {token ? (
+      {/* Top Navigation: ONLY when logged in */}
+      {token && (
+        <div
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 2000,
+            display: 'flex',
+            alignItems: 'center',
+            height: 'var(--appbar-h)',
+            padding: '0 12px',
+            backgroundColor: '#800080',
+            borderBottom: '1px solid rgba(255,255,255,.15)'
+          }}
+        >
+          {/* LEFT: Hamburger toggles the left drawer */}
           <button
             aria-label={navOpen ? 'Close menu' : 'Open menu'}
             className="hamburger"
@@ -362,27 +362,22 @@ function AppFrame() {
             <span className="bar" />
             <span className="bar" />
           </button>
-        ) : (
-          // keep layout aligned when logged out
-          <span style={{ width: 44, height: 44, display: 'inline-block' }} />
-        )}
 
-        {/* TITLE pushed right by the hamburger */}
-        <h2
-          style={{
-            color: '#fff',
-            margin: 0,
-            marginLeft: 8,
-            fontSize: 22,
-            fontWeight: 900
-          }}
-        >
-          Sparely
-        </h2>
+          {/* TITLE */}
+          <h2
+            style={{
+              color: '#fff',
+              margin: 0,
+              marginLeft: 8,
+              fontSize: 22,
+              fontWeight: 900
+            }}
+          >
+            Sparely
+          </h2>
 
-        {/* RIGHT: existing dropdown / auth buttons */}
-        <div style={{ marginLeft: 'auto' }}>
-          {token ? (
+          {/* RIGHT: dropdown menu */}
+          <div style={{ marginLeft: 'auto' }}>
             <div className="menu-wrap">
               <button
                 ref={buttonRef}
@@ -392,23 +387,41 @@ function AppFrame() {
                 aria-expanded={dropdownOpen}
                 aria-controls="main-menu"
               >
-                Menu <span className={`chev ${dropdownOpen ? 'open' : ''}`}>▾</span>
+                Menu{' '}
+                <span className={`chev ${dropdownOpen ? 'open' : ''}`}>▾</span>
               </button>
 
               {renderMenu && (
                 <div
                   id="main-menu"
                   ref={menuRef}
-                  className={`menu-panel ${dropdownOpen ? '' : 'closing'}`}
+                  className={`menu-panel ${
+                    dropdownOpen ? '' : 'closing'
+                  }`}
                   role="menu"
                 >
-                  <Link to="/dashboard" style={linkStyle} onClick={() => setDropdownOpen(false)} role="menuitem">
+                  <Link
+                    to="/dashboard"
+                    style={linkStyle}
+                    onClick={() => setDropdownOpen(false)}
+                    role="menuitem"
+                  >
                     Dashboard
                   </Link>
-                  <Link to="/calendar" style={linkStyle} onClick={() => setDropdownOpen(false)} role="menuitem">
+                  <Link
+                    to="/calendar"
+                    style={linkStyle}
+                    onClick={() => setDropdownOpen(false)}
+                    role="menuitem"
+                  >
                     Calendar
                   </Link>
-                  <Link to="/profile" style={linkStyle} onClick={() => setDropdownOpen(false)} role="menuitem">
+                  <Link
+                    to="/profile"
+                    style={linkStyle}
+                    onClick={() => setDropdownOpen(false)}
+                    role="menuitem"
+                  >
                     Profile
                   </Link>
                   <button
@@ -416,7 +429,13 @@ function AppFrame() {
                       handleLogout();
                       setDropdownOpen(false);
                     }}
-                    style={{ ...linkStyle, background: '#cc0000', border: 'none', width: '100%', textAlign: 'left' }}
+                    style={{
+                      ...linkStyle,
+                      background: '#cc0000',
+                      border: 'none',
+                      width: '100%',
+                      textAlign: 'left'
+                    }}
                     role="menuitem"
                   >
                     Logout
@@ -424,18 +443,9 @@ function AppFrame() {
                 </div>
               )}
             </div>
-          ) : (
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <Link to="/" style={{ ...linkStyle, backgroundColor: '#4CAF50' }}>
-                Login
-              </Link>
-              <Link to="/register" style={{ ...linkStyle, backgroundColor: '#2196F3' }}>
-                Register
-              </Link>
-            </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Left slide-in drawer (below the top bar) */}
       {token && (
@@ -457,32 +467,45 @@ function AppFrame() {
               <strong>Navigation</strong>
             </div>
 
-            {/* Big tiles */}
             <nav className="drawer-grid">
               <Link
                 to="/search"
-                className={`drawer-tile ${location.pathname.startsWith('/search') ? 'active' : ''}`}
+                className={`drawer-tile ${
+                  location.pathname.startsWith('/search') ? 'active' : ''
+                }`}
                 onClick={() => setNavOpen(false)}
               >
                 Search
               </Link>
               <Link
                 to="/dashboard"
-                className={`drawer-tile ${location.pathname.startsWith('/dashboard') ? 'active' : ''}`}
+                className={`drawer-tile ${
+                  location.pathname.startsWith('/dashboard')
+                    ? 'active'
+                    : ''
+                }`}
                 onClick={() => setNavOpen(false)}
               >
                 Dashboard
               </Link>
               <Link
                 to="/calendar"
-                className={`drawer-tile ${location.pathname.startsWith('/calendar') ? 'active' : ''}`}
+                className={`drawer-tile ${
+                  location.pathname.startsWith('/calendar')
+                    ? 'active'
+                    : ''
+                }`}
                 onClick={() => setNavOpen(false)}
               >
                 Calendar
               </Link>
               <Link
                 to="/profile"
-                className={`drawer-tile ${location.pathname.startsWith('/profile') ? 'active' : ''}`}
+                className={`drawer-tile ${
+                  location.pathname.startsWith('/profile')
+                    ? 'active'
+                    : ''
+                }`}
                 onClick={() => setNavOpen(false)}
               >
                 Profile
@@ -508,13 +531,31 @@ function AppFrame() {
       <Routes>
         <Route
           path="/"
-          element={token ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />}
+          element={
+            token ? (
+              <Navigate to="/dashboard" />
+            ) : (
+              <Login onLogin={handleLogin} />
+            )
+          }
         />
         <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={token ? <Dashboard /> : <Navigate to="/" />} />
-        <Route path="/profile" element={token ? <Profile /> : <Navigate to="/" />} />
-        <Route path="/calendar" element={token ? <CalendarPage /> : <Navigate to="/" />} />
-        <Route path="/search" element={token ? <SearchPage /> : <Navigate to="/" />} />
+        <Route
+          path="/dashboard"
+          element={token ? <Dashboard /> : <Navigate to="/" />}
+        />
+        <Route
+          path="/profile"
+          element={token ? <Profile /> : <Navigate to="/" />}
+        />
+        <Route
+          path="/calendar"
+          element={token ? <CalendarPage /> : <Navigate to="/" />}
+        />
+        <Route
+          path="/search"
+          element={token ? <SearchPage /> : <Navigate to="/" />}
+        />
         <Route path="/test-pins" element={<TestPinsPage />} />
       </Routes>
     </div>
