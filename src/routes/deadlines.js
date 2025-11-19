@@ -1,8 +1,14 @@
 // src/routes/deadlines.js (CommonJS)
 const express = require('express');
 const { createEvents } = require('ics');
+const jwt = require('jsonwebtoken');
+const { query } = require('../config/db');
 const { fetchAllDeadlines, getOrPopulateDeadlines } = require('../utils/deadlineScraper');
+
 const router = express.Router();
+
+// JWT secret (same you use in auth)
+const JWT_SECRET = process.env.JWT_SECRET || 'change_me_in_env';
 
 // Put these small helpers near the top of the file (below other helpers is fine)
 function extractSessions(s) {
@@ -68,12 +74,30 @@ function parseRange(text) {
   if (!isNaN(tryDate.getTime())) { const e = new Date(tryDate); e.setDate(e.getDate() + 1); return { start: tryDate, end: e }; }
   return null;
 }
+
 // add near the top of routes/deadlines.js
 router.get('/deadlines/ping', (_req, res) => {
   res.json({ ok: true, router: 'deadlines' });
 });
 
-/* ---------- existing JSON endpoint ---------- */
+/* ---------- helper: get userId from Authorization header (optional) ---------- */
+function getUserIdFromRequest(req) {
+  const authHeader = req.headers.authorization || '';
+  if (!authHeader.startsWith('Bearer ')) return null;
+
+  const token = authHeader.slice(7).trim();
+  if (!token) return null;
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    // adjust this if your JWT uses a different property name
+    return decoded.id || decoded.userId || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/* ---------- existing JSON endpoint + Canvas merge ---------- */
 router.get('/deadlines', async (req, res) => {
   try {
     const deadlines = await getOrPopulateDeadlines();
@@ -106,24 +130,56 @@ router.get('/deadlines', async (req, res) => {
       }
     }
 
-    // 3) (optional) annotate the title with merged sessions to make it clear
-const deduped = Array.from(map.values()).map(x => {
-  const sessions = Array.from(x._sessions || []);
-  const tag = sessions.length ? ` (${sessions.join('/')})` : '';
+    // 3) annotate the title with merged sessions to make it clear
+    const deduped = Array.from(map.values()).map(x => {
+      const sessions = Array.from(x._sessions || []);
+      const tag = sessions.length ? ` (${sessions.join('/')})` : '';
 
-  // Grab the original date string from whichever field it lives on
-  const rawDate = x.date || x.dateText || x.text || x.event;
+      // Grab the original date string from whichever field it lives on
+      const rawDate = x.date || x.dateText || x.text || x.event;
 
-  return {
-    event: x.event + tag,
-    date: rawDate,                 // 👈 raw string; frontend will parse it
-    category: x.category || 'other'
-  };
-});
+      return {
+        event: x.event + tag,
+        date: rawDate,                 // raw string; frontend will parse it
+        category: x.category || 'other',
+        source: 'uw',                  // 👈 mark as UW/Bothell deadline
+      };
+    });
 
+    // 4) Optionally pull Canvas events for logged-in user
+    const userId = getUserIdFromRequest(req);
+    let canvasEvents = [];
 
+    if (userId) {
+      const { rows } = await query(
+        `
+        SELECT id, title, start_date, course_code, url
+        FROM canvas_events
+        WHERE user_id = $1
+        ORDER BY start_date ASC
+        `,
+        [userId]
+      );
 
-    res.json(deduped);
+      canvasEvents = rows.map((r) => {
+        // start_date is a DATE; convert to ISO string or leave as Date
+        const dateIso = r.start_date instanceof Date
+          ? r.start_date.toISOString().slice(0, 10)
+          : String(r.start_date);
+
+        return {
+          event: r.title,
+          date: dateIso, // "YYYY-MM-DD"
+          category: r.course_code ? `Canvas (${r.course_code})` : 'Canvas',
+          source: 'canvas',
+          url: r.url || null,
+        };
+      });
+    }
+
+    const combined = [...deduped, ...canvasEvents];
+
+    res.json(combined);
   } catch (err) {
     console.error('Error fetching deadlines:', err);
     res.status(500).json({ message: 'Failed to retrieve deadlines' });
@@ -132,7 +188,6 @@ const deduped = Array.from(map.values()).map(x => {
 
 
 /* ---------- ICS sanity test ---------- */
-// --- ICS sanity test (single event) ---
 // /api/deadlines/ics-test
 router.get('/deadlines/ics-test', (req, res) => {
   const { createEvents } = require('ics');
@@ -151,7 +206,6 @@ router.get('/deadlines/ics-test', (req, res) => {
   res.setHeader('Content-Disposition', 'attachment; filename="sparely-test.ics"');
   res.send(value);
 });
-
 
 
 /* ---------- real ICS export ---------- */
