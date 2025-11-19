@@ -13,7 +13,7 @@ console.log('🚀 Sparely server.js starting up!');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
-const { authMiddleware } = require('./auth');
+const { authMiddleware } = require('./middleware/authMiddleware');
 const { parseCanvasIcs, saveCanvasEventsToDb } = require('./canvasService');
 
 
