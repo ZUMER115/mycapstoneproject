@@ -13,6 +13,9 @@ console.log('🚀 Sparely server.js starting up!');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
+const { authMiddleware } = require('./auth');
+const { parseCanvasIcs, saveCanvasEventsToDb } = require('./canvasService');
+
 
 // --- CORS (allow Vercel and localhost) ---
 // ✅ define allowedOrigins BEFORE app.use(cors(...))
@@ -23,6 +26,34 @@ const allowedOrigins = [
   'http://localhost:5173',                          // if you ever use Vite
   'https://mycapstoneproject-tbo9.vercel.app'   
 ].filter(Boolean); // remove undefined/null entries
+
+app.use(express.json({ limit: '1mb' }));
+
+app.post('/api/canvas/import-ics', authMiddleware, async (req, res) => {
+  try {
+    const { icsText } = req.body;
+
+    if (!icsText || typeof icsText !== 'string') {
+      return res.status(400).json({ error: 'icsText is required.' });
+    }
+
+    const parsedEvents = parseCanvasIcs(icsText);
+
+    if (!parsedEvents.length) {
+      return res.status(400).json({ error: 'No events found in ICS.' });
+    }
+
+    const userId = req.user.id; // assuming authMiddleware sets this
+    const importedCount = await saveCanvasEventsToDb(userId, parsedEvents);
+
+    res.json({
+      imported: importedCount,
+    });
+  } catch (err) {
+    console.error('Error importing canvas ICS:', err);
+    res.status(500).json({ error: 'Failed to import Canvas ICS.' });
+  }
+});
 
 app.use(
   cors({
@@ -83,6 +114,8 @@ app.get('/health/db', (_req, res) => {
   const stateNames = ['disconnected', 'connected', 'connecting', 'disconnecting', 'uninitialized'];
   res.json({ state: mongoose.connection.readyState, stateName: stateNames[mongoose.connection.readyState] || 'unknown' });
 });
+
+
 app.get('/', (_req, res) => res.send('Sparely backend is running'));
 
 
@@ -145,6 +178,25 @@ app.get('/api/test-resend', async (req, res) => {
       message: 'Unexpected server error when calling Resend',
       error: err.message
     });
+  }
+});
+
+
+app.get('/api/rmp/course', async (req, res) => {
+  try {
+    const { courseCode, school } = req.query;
+
+    if (!courseCode || !school) {
+      return res.status(400).json({ error: 'courseCode and school are required' });
+    }
+
+    // TODO: call your RMP service here
+    const data = await getProfessorsForCourse({ courseCode, school });
+
+    res.json(data);
+  } catch (err) {
+    console.error('Error /api/rmp/course:', err);
+    res.status(500).json({ error: 'Something went wrong' });
   }
 });
 
