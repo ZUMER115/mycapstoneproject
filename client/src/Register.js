@@ -260,7 +260,7 @@ const Register = ({ onRegister }) => {
 
             {/* Footer */}
             <div className="auth-footer">
-              Already have an account? <Link to="/login">Sign in</Link>
+              Already have an account? <Link to="/">Sign in</Link>
             </div>
           </div>
         </form>

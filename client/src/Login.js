@@ -44,7 +44,7 @@ const Login = ({ onLogin }) => {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '4.5rem 1rem 2rem',
+    padding: '3.25rem 1rem 2rem', // ⬅️ was 4.5rem, pulls logo/card higher
     boxSizing: 'border-box',
     background:
       'linear-gradient(135deg, #2f3fe4 0%, #7b2ff7 30%, #ff3cac 65%, #ff9a62 100%)'
@@ -54,13 +54,13 @@ const Login = ({ onLogin }) => {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: 16
+    gap: 18
   };
 
   const logo = {
-    fontSize: 30,
+    fontSize: 40,                     // ⬅️ larger logo
     fontWeight: 800,
-    letterSpacing: 1.5,
+    letterSpacing: 2,
     color: '#ffffff',
     textTransform: 'uppercase',
     textShadow: '0 16px 40px rgba(15,23,42,.65)',
@@ -187,7 +187,7 @@ const Login = ({ onLogin }) => {
 
         @media (max-width: 640px) {
           .auth-page {
-            padding-top: 5rem !important;
+            padding-top: 4rem !important;
           }
         }
       `}</style>
