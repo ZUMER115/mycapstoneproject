@@ -55,6 +55,9 @@
   "mongoose": "^8.19.1",
   
     
+  "node-ical": "^0.22.1",
+  
+    
   "nodemailer": "^7.0.9",
   
     
