@@ -56,8 +56,8 @@ function toISODateSafe(raw) {
 const DATE_BADGE_STYLE = {
   fontSize: 14,
   fontWeight: 700,
-  background: '#1d4ed8',      // darker blue
-  color: '#ffffff',           // white text
+  background: '#1d4ed8',
+  color: '#ffffff',
   border: '1px solid #1e40af',
   padding: '6px 10px',
   borderRadius: 999,
@@ -65,7 +65,7 @@ const DATE_BADGE_STYLE = {
   textAlign: 'center'
 };
 
-// 🔹 Dark pin badge so it shows on dark widgets
+// 🔹 Dark pin badge
 const PIN_BADGE_STYLE = {
   border: '1px solid #4b5563',
   padding: '0.25rem 0.6rem',
@@ -79,14 +79,13 @@ const PIN_BADGE_STYLE = {
   textAlign: 'center'
 };
 
-// build a stable key for scraped items
+// stable key
 const keyForScraped = (item) => {
   const iso = toISODateSafe(item.date || item.dateText || item.text || item.event) || '';
   const title = (item.event || item.title || '').toLowerCase().slice(0, 80);
   return `scr|${iso}|${title}`;
 };
 
-// build full payload like Dashboard
 function buildScrapedPayload(item) {
   const iso = toISODateSafe(item.date || item.dateText || item.text || item.event) || '';
   const title = (item.event || item.title || '').toLowerCase().slice(0, 80);
@@ -99,7 +98,7 @@ function buildScrapedPayload(item) {
   };
 }
 
-// optional sync, mirrors Dashboard
+// sync pins
 async function syncPinsToServer(email, pinsPayload) {
   try {
     await fetch(`${API}/api/pins/set`, {
@@ -112,17 +111,34 @@ async function syncPinsToServer(email, pinsPayload) {
   }
 }
 
+// smooth scroll with ease-out (fast then slow)
+function smoothScrollTo(container, target, duration = 600) {
+  const start = container.scrollTop;
+  const change = target - start;
+  const startTime = performance.now();
+
+  function step(currentTime) {
+    const elapsed = currentTime - startTime;
+    const t = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    container.scrollTop = start + change * eased;
+    if (t < 1) requestAnimationFrame(step);
+  }
+
+  requestAnimationFrame(step);
+}
+
 export default function SearchPage() {
   const [deadlines, setDeadlines] = useState([]);
   const [categoryFilters, setCategoryFilters] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
-  const [includePast, setIncludePast] = useState(false); // same behavior as Dashboard list
-  const [canvasFilter, setCanvasFilter] = useState(true); // 🔹 NEW: global Canvas on/off
+  const [includePast, setIncludePast] = useState(false); // you said: don't show past when unchecked
+  const [canvasFilter, setCanvasFilter] = useState(true); // global Canvas toggle
   const listRef = useRef(null);
   const [toastMsg, setToastMsg] = useState('');
-  const [toastSeq, setToastSeq] = useState(0); // forces animation to replay
+  const [toastSeq, setToastSeq] = useState(0);
+  const [showSkipButton, setShowSkipButton] = useState(false);
 
-  // user email (for pin sync)
   const [userEmail, setUserEmail] = useState('');
 
   useEffect(() => {
@@ -150,7 +166,7 @@ export default function SearchPage() {
       .catch(() => {});
   }, []);
 
-  // hydrate category filters from data (per-category for UW/Canvas labels)
+  // hydrate category filters from data
   useEffect(() => {
     if (!deadlines.length) return;
     setCategoryFilters(prev => {
@@ -162,7 +178,7 @@ export default function SearchPage() {
     });
   }, [deadlines]);
 
-  // Pinned keys in localStorage (scraped only here)
+  // pinned
   const [pinnedKeys, setPinnedKeys] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem('pinnedKeys') || '[]')); }
     catch { return new Set(); }
@@ -170,7 +186,6 @@ export default function SearchPage() {
 
   useEffect(() => {
     localStorage.setItem('pinnedKeys', JSON.stringify([...pinnedKeys]));
-    // optional: push only currently visible/pinned scraped to server for this page
     if (userEmail) {
       const payload = [...pinnedKeys]
         .filter(k => k.startsWith('scr|'))
@@ -183,7 +198,6 @@ export default function SearchPage() {
     }
   }, [pinnedKeys, userEmail, deadlines]);
 
-  // filtering pipeline
   const today = new Date();
   const todayStart = startOfDay(today);
 
@@ -191,6 +205,9 @@ export default function SearchPage() {
     const iso = toISODateSafe(it.date || it.dateText || it.text || it.event);
     return iso ? new Date(iso + 'T00:00:00') : new Date('Invalid');
   };
+
+  const anyCategoryOn = Object.values(categoryFilters).some(Boolean);
+  const anyCanvasOn = canvasFilter;
 
   // 1) category + search + canvas filter
   const allowedFiltered = deadlines.filter((item) => {
@@ -202,7 +219,10 @@ export default function SearchPage() {
       item.source === 'canvas' ||
       (/canvas/i.test(category));
 
-    if (!allowed) return false;
+    // if nothing is checked at all => show nothing
+    if (!anyCategoryOn && !anyCanvasOn) return false;
+
+    if (!allowed && !isCanvas) return false; // UW / non-canvas categories
     if (!canvasFilter && isCanvas) return false;
     if (!matches) return false;
 
@@ -218,11 +238,11 @@ export default function SearchPage() {
       .map(x => x.d);
   }, [allowedFiltered]);
 
-  // 3) upcoming vs all toggle
+  // 3) upcoming vs all toggle (you *don't* want past when unchecked)
   const upcomingOnly = allAllowedSorted.filter(it => getDate(it) >= todayStart);
   const visibleList = includePast ? allAllowedSorted : upcomingOnly;
 
-  // first upcoming index (in visibleList context)
+  // first upcoming index (within visibleList / allAllowedSorted)
   const firstUpcomingIdx = useMemo(() => {
     const base = visibleList === upcomingOnly ? visibleList : allAllowedSorted;
     const idx = base.findIndex(it => getDate(it) >= todayStart);
@@ -230,16 +250,67 @@ export default function SearchPage() {
     return idx;
   }, [visibleList, includePast, allAllowedSorted, todayStart, upcomingOnly]);
 
-  const sortedDeadlines = useMemo(() => {
-    return visibleList;
-  }, [visibleList]);
+  const sortedDeadlines = useMemo(() => visibleList, [visibleList]);
 
-  // scroll handler for "Skip to today"
-  const scrollToFirstUpcoming = () => {
-    if (firstUpcomingIdx < 0) return;
-    const el = listRef.current?.querySelector(`[data-idx="${firstUpcomingIdx}"]`);
-    if (el) el.scrollIntoView({ block: 'start' });
+  // scroll to today's first upcoming item
+  const scrollToFirstUpcoming = (instant = false) => {
+    if (firstUpcomingIdx == null || firstUpcomingIdx < 0) return;
+    const listEl = listRef.current;
+    if (!listEl) return;
+
+    const itemEl = listEl.querySelector(`[data-idx="${firstUpcomingIdx}"]`);
+    if (!itemEl) return;
+
+    const listRect = listEl.getBoundingClientRect();
+    const itemRect = itemEl.getBoundingClientRect();
+    const currentScroll = listEl.scrollTop;
+    const offset = itemRect.top - listRect.top;
+    const targetScrollTop = currentScroll + offset;
+
+    if (instant) {
+      listEl.scrollTop = targetScrollTop;
+    } else {
+      smoothScrollTo(listEl, targetScrollTop, 600);
+    }
   };
+
+  // 👉 Always jump to "today" whenever visible list changes (filters/search updates)
+  useEffect(() => {
+    if (sortedDeadlines.length > 0) {
+      // instant jump feels best when filters change
+      scrollToFirstUpcoming(true);
+    }
+  }, [sortedDeadlines]);
+
+  // track when first upcoming is off-screen → show big blue "Skip to today"
+  useEffect(() => {
+    const listEl = listRef.current;
+    if (!listEl) return;
+
+    const handleScroll = () => {
+      if (firstUpcomingIdx == null || firstUpcomingIdx < 0) {
+        setShowSkipButton(false);
+        return;
+      }
+      const itemEl = listEl.querySelector(`[data-idx="${firstUpcomingIdx}"]`);
+      if (!itemEl) {
+        setShowSkipButton(false);
+        return;
+      }
+      const listRect = listEl.getBoundingClientRect();
+      const itemRect = itemEl.getBoundingClientRect();
+
+      const isVisible =
+        itemRect.top >= listRect.top + 4 &&
+        itemRect.bottom <= listRect.bottom - 4;
+
+      setShowSkipButton(!isVisible);
+    };
+
+    handleScroll(); // initial
+    listEl.addEventListener('scroll', handleScroll);
+    return () => listEl.removeEventListener('scroll', handleScroll);
+  }, [firstUpcomingIdx, sortedDeadlines]);
 
   const togglePinKey = (k) =>
     setPinnedKeys(prev => {
@@ -248,13 +319,12 @@ export default function SearchPage() {
       if (already) n.delete(k); else n.add(k);
 
       setToastMsg(already ? 'Unpinned' : 'Pinned');
-      setToastSeq(s => s + 1);   // retrigger animation
+      setToastSeq(s => s + 1);
 
       return n;
     });
 
   const clearAllFilters = () => {
-    // reset search + enable all categories + show upcoming (like Dashboard "Show all / clear")
     setSearchTerm('');
     setIncludePast(false);
     setCanvasFilter(true);
@@ -379,7 +449,7 @@ export default function SearchPage() {
               </label>
             ))}
 
-            {/* 🔹 extra Canvas global checkbox */}
+            {/* extra Canvas global checkbox */}
             <label
               style={{
                 display:'inline-flex',
@@ -400,46 +470,65 @@ export default function SearchPage() {
           </div>
         </div>
 
-        {/* Include past toggle + actions */}
-        <div style={{ display:'flex', gap:12, alignItems:'center', flexWrap:'wrap' }}>
-          <label style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
-            <input
-              type="checkbox"
-              checked={includePast}
-              onChange={(e)=>{ setIncludePast(e.target.checked); }}
-            />
-            Show past deadlines
-          </label>
+        {/* Include past toggle + actions + Skip to today (right) */}
+        <div
+          style={{
+            display:'flex',
+            gap:12,
+            alignItems:'center',
+            flexWrap:'wrap',
+            justifyContent:'space-between'
+          }}
+        >
+          <div style={{ display:'flex', gap:12, alignItems:'center', flexWrap:'wrap' }}>
+            <label style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+              <input
+                type="checkbox"
+                checked={includePast}
+                onChange={(e)=>{ setIncludePast(e.target.checked); }}
+              />
+              Show past deadlines
+            </label>
 
-          <button
-            onClick={clearAllFilters}
-            style={{
-              border: '1px solid rgba(148,163,184,0.7)',
-              background: 'rgba(15,23,42,0.9)',
-              color: '#e5e7eb',
-              padding: '6px 10px',
-              borderRadius: 6,
-              cursor: 'pointer'
-            }}
-            title="Reset search & categories; show upcoming only"
-          >
-            Show all (clear)
-          </button>
+            <button
+              onClick={clearAllFilters}
+              style={{
+                border: '1px solid rgba(148,163,184,0.7)',
+                background: 'rgba(15,23,42,0.9)',
+                color: '#e5e7eb',
+                padding: '6px 10px',
+                borderRadius: 6,
+                cursor: 'pointer'
+              }}
+              title="Reset search & categories; show upcoming only"
+            >
+              Show all (clear)
+            </button>
+          </div>
 
-          <button
-            onClick={scrollToFirstUpcoming}
-            style={{
-              border: '1px solid rgba(148,163,184,0.7)',
-              background: 'rgba(15,23,42,0.9)',
-              color: '#e5e7eb',
-              padding: '6px 10px',
-              borderRadius: 6,
-              cursor: 'pointer'
-            }}
-            title="Scroll to today's first upcoming item"
-          >
-            Skip to today
-          </button>
+          {showSkipButton && (
+            <button
+              onClick={() => scrollToFirstUpcoming(false)}
+              style={{
+                marginLeft: 'auto',
+                padding: '8px 16px',
+                borderRadius: 999,
+                border: 'none',
+                background: '#2563eb',
+                color: '#ffffff',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 10px 25px rgba(37,99,235,0.45)',
+                opacity: 0.96,
+                transition: 'opacity 0.18s ease, transform 0.18s ease',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '0.96'; e.currentTarget.style.transform = 'translateY(0)'; }}
+              title="You’re away from today — click to jump back"
+            >
+              Back to today
+            </button>
+          )}
         </div>
       </div>
 
