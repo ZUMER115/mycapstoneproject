@@ -13,7 +13,7 @@ console.log('🚀 Sparely server.js starting up!');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
-const { authMiddleware } = require('./middleware/authMiddleware');
+const authMiddleware = require('./middleware/authMiddleware');
 const { parseCanvasIcs, saveCanvasEventsToDb } = require('./canvasService');
 
 
@@ -28,6 +28,8 @@ const allowedOrigins = [
 ].filter(Boolean); // remove undefined/null entries
 
 app.use(express.json({ limit: '1mb' }));
+
+console.log('authMiddleware type:', typeof authMiddleware);
 
 app.post('/api/canvas/import-ics', authMiddleware, async (req, res) => {
   try {
