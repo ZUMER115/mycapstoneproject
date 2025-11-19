@@ -28,7 +28,10 @@ export default function Profile() {
 
   const [msg, setMsg] = useState(null); // { type: 'ok' | 'err', text: string }
 
-
+  // Canvas ICS import state
+  const [icsFile, setIcsFile] = useState(null);
+  const [icsStatus, setIcsStatus] = useState('');
+  const [icsLoading, setIcsLoading] = useState(false);
 
   // ---- helpers ----
   const clampLead = (n) => {
@@ -70,7 +73,9 @@ export default function Profile() {
       }
 
       fetch(`${API_BASE}/api/preferences/${encodeURIComponent(e)}`)
-        .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load preferences'))))
+        .then((r) =>
+          r.ok ? r.json() : Promise.reject(new Error('Failed to load preferences'))
+        )
         .then((p) => {
           const ltd = Number(p.lead_time_days ?? 3);
           const thm = p.theme || 'light';
@@ -149,18 +154,17 @@ export default function Profile() {
     setUpdatingEmail(true);
     try {
       const token = getToken();
-const res = await fetch(`${API_BASE}/api/auth/email`, {
-  method: 'PUT',
-  headers: {
-    'Content-Type': 'application/json',
-    Authorization: token ? `Bearer ${token}` : ''
-  },
-  body: JSON.stringify({
-    currentPassword: currentPasswordForEmail,
-    newEmail: newEmail.trim()
-  })
-});
-
+      const res = await fetch(`${API_BASE}/api/auth/email`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({
+          currentPassword: currentPasswordForEmail,
+          newEmail: newEmail.trim()
+        })
+      });
 
       const text = await res.text();
       let data;
@@ -225,17 +229,17 @@ const res = await fetch(`${API_BASE}/api/auth/email`, {
     setUpdatingPassword(true);
     try {
       const token = getToken();
-const res = await fetch(`${API_BASE}/api/auth/change-password`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    Authorization: token ? `Bearer ${token}` : ''
-  },
-  body: JSON.stringify({
-    currentPassword,
-    newPassword
-  })
-});
+      const res = await fetch(`${API_BASE}/api/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword
+        })
+      });
 
       const text = await res.text();
       let data;
@@ -260,6 +264,56 @@ const res = await fetch(`${API_BASE}/api/auth/change-password`, {
       setMsg({ type: 'err', text: err?.message || 'Failed to change password.' });
     } finally {
       setUpdatingPassword(false);
+    }
+  };
+
+  // ---- Canvas ICS handlers ----
+  const handleIcsFileChange = (e) => {
+    const file = e.target.files?.[0];
+    setIcsFile(file || null);
+    setIcsStatus('');
+  };
+
+  const handleIcsUpload = async () => {
+    if (!icsFile) {
+      setIcsStatus('Please choose a .ics file first.');
+      return;
+    }
+    if (!email) {
+      setIcsStatus('Please log in first.');
+      return;
+    }
+
+    try {
+      setIcsLoading(true);
+      setIcsStatus('');
+
+      const text = await icsFile.text();
+      const token = getToken();
+
+      const res = await fetch(`${API_BASE}/api/canvas/import-ics`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ icsText: text })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to import Canvas calendar.');
+      }
+
+      const count = data.imported ?? 0;
+      setIcsStatus(`Imported ${count} Canvas event${count === 1 ? '' : 's'}.`);
+      setIcsFile(null);
+    } catch (err) {
+      console.error(err);
+      setIcsStatus(err.message || 'Something went wrong importing Canvas calendar.');
+    } finally {
+      setIcsLoading(false);
     }
   };
 
@@ -483,6 +537,42 @@ const res = await fetch(`${API_BASE}/api/auth/change-password`, {
             The theme applies instantly for preview and is remembered. Click Save to update the
             server copy.
           </small>
+        </section>
+
+        {/* Canvas Calendar Import */}
+        <section style={card}>
+          <h3 style={{ marginTop: 0 }}>Canvas Calendar Import</h3>
+          <p style={{ marginTop: 4, color: '#555', fontSize: 14 }}>
+            Export your Canvas calendar as a <code>.ics</code> file and upload it here to add your
+            assignments into Sparely.
+          </p>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <input
+              type="file"
+              accept=".ics,text/calendar"
+              onChange={handleIcsFileChange}
+            />
+            <button
+              type="button"
+              onClick={handleIcsUpload}
+              disabled={icsLoading || !icsFile}
+              style={{
+                padding: '0.6rem 1rem',
+                border: 'none',
+                borderRadius: 8,
+                background: '#2563eb',
+                color: '#fff',
+                cursor: icsLoading || !icsFile ? 'default' : 'pointer'
+              }}
+            >
+              {icsLoading ? 'Importing…' : 'Import .ics'}
+            </button>
+          </div>
+
+          {icsStatus && (
+            <p style={{ marginTop: 8, fontSize: 14, color: '#374151' }}>{icsStatus}</p>
+          )}
         </section>
 
         {/* Actions / Status */}
