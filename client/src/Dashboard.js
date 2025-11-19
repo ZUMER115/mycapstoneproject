@@ -372,42 +372,50 @@ const Dashboard = () => {
   }, [userEmail]);
 
   // load scraped deadlines + user email
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const decoded = jwtDecode(token);
-        if (decoded?.email) setUserEmail(decoded.email);
-      } catch (e) {
-        console.error('[Dashboard] jwtDecode failed:', e);
-      }
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    try {
+      const decoded = jwtDecode(token);
+      if (decoded?.email) setUserEmail(decoded.email);
+    } catch (e) {
+      console.error('[Dashboard] jwtDecode failed:', e);
     }
+  }
 
-    const url = `${API}/api/deadlines`;
-    console.log('[Dashboard] fetching deadlines from', url);
+  const url = `${API}/api/deadlines`;
+  console.log('[Dashboard] fetching deadlines from', url);
 
-    fetch(url)
-      .then(async (r) => {
-        console.log('[Dashboard] /api/deadlines status:', r.status);
-        const text = await r.text();
-        console.log('[Dashboard] raw response text:', text.slice(0, 200));
-        
-        let json;
-        try { json = JSON.parse(text); }
-        catch (e) {
-          console.error('[Dashboard] JSON parse failed:', e);
-          return setDeadlines([]);
-        }
+  // 👇 NEW: include Authorization header if token is present
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
 
-        console.log('[Dashboard] parsed JSON:', json);
-        setDeadlines(Array.isArray(json) ? json : []);
-      })
-      .catch((err) => {
-        console.error('[Dashboard] FETCH FAILED (likely CORS or network):', err);
-        setDeadlines([]);
-      });
+  fetch(url, { headers })
+    .then(async (r) => {
+      console.log('[Dashboard] /api/deadlines status:', r.status);
+      const text = await r.text();
+      console.log('[Dashboard] raw response text:', text.slice(0, 200));
+      
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch (e) {
+        console.error('[Dashboard] JSON parse failed:', e);
+        return setDeadlines([]);
+      }
 
-  }, []);
+      console.log('[Dashboard] parsed JSON:', json);
+      setDeadlines(Array.isArray(json) ? json : []);
+    })
+    .catch((err) => {
+      console.error('[Dashboard] FETCH FAILED (likely CORS or network):', err);
+      setDeadlines([]);
+    });
+
+}, []);
+
 
   async function refreshUserEvents(email) {
     if (!email) return;
