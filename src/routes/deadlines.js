@@ -213,7 +213,7 @@ router.get('/deadlines', async (req, res) => {
 
         return {
           event: r.title,
-          date: dateIso,
+          date: dateIso.slice(0, 10),
           category: r.course_code ? `Canvas (${r.course_code})` : 'Canvas',
           source: 'canvas',
           url: r.url || null,
