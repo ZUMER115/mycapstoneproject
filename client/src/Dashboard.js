@@ -8,7 +8,7 @@ console.log('API:', API);
 // ---- Recommended logic helpers ----
 const RECO_TARGET        = 7;
 const RECO_UPCOMING_DAYS = 4;   // “3–4 days”
-const RECO_SHARED_DAYS   = 21;  // pinned categories window
+const RECO_SHARED_DAYS   = 21;  // pinned categories window;
 
 // Days until a local YYYY-MM-DD date
 const daysUntil = (iso) => {
@@ -59,7 +59,6 @@ function getISOFromItem(it) {
 
 /**
  * Compute Recommended Deadlines (YOUR SPEC)
- * ...
  */
 function computeRecommendedDeadlines({
   allItems = [],
@@ -306,6 +305,13 @@ const PIN_BADGE_STYLE = {
   textAlign: 'center'
 };
 
+// 🔹 Helper to detect Canvas items (by category or title)
+const isCanvasItem = (item) => {
+  const cat = (item?.category || '').toLowerCase();
+  const title = (item?.event || item?.title || '').toLowerCase();
+  return cat === 'canvas' || title.includes('canvas');
+};
+
 /* ================= main component ================= */
 const Dashboard = () => {
   const location = useLocation();
@@ -320,7 +326,6 @@ const Dashboard = () => {
 
   const [groupedView, setGroupedView] = useState(false);
   const [includePast, setIncludePast] = useState(false);
-  const [rangeFilter, setRangeFilter] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [miniSelectedDate, setMiniSelectedDate] = useState(null);
@@ -372,50 +377,48 @@ const Dashboard = () => {
   }, [userEmail]);
 
   // load scraped deadlines + user email
-useEffect(() => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    try {
-      const decoded = jwtDecode(token);
-      if (decoded?.email) setUserEmail(decoded.email);
-    } catch (e) {
-      console.error('[Dashboard] jwtDecode failed:', e);
-    }
-  }
-
-  const url = `${API}/api/deadlines`;
-  console.log('[Dashboard] fetching deadlines from', url);
-
-  // 👇 NEW: include Authorization header if token is present
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-
-  fetch(url, { headers })
-    .then(async (r) => {
-      console.log('[Dashboard] /api/deadlines status:', r.status);
-      const text = await r.text();
-      console.log('[Dashboard] raw response text:', text.slice(0, 200));
-      
-      let json;
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
       try {
-        json = JSON.parse(text);
+        const decoded = jwtDecode(token);
+        if (decoded?.email) setUserEmail(decoded.email);
       } catch (e) {
-        console.error('[Dashboard] JSON parse failed:', e);
-        return setDeadlines([]);
+        console.error('[Dashboard] jwtDecode failed:', e);
       }
+    }
 
-      console.log('[Dashboard] parsed JSON:', json);
-      setDeadlines(Array.isArray(json) ? json : []);
-    })
-    .catch((err) => {
-      console.error('[Dashboard] FETCH FAILED (likely CORS or network):', err);
-      setDeadlines([]);
-    });
+    const url = `${API}/api/deadlines`;
+    console.log('[Dashboard] fetching deadlines from', url);
 
-}, []);
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
 
+    fetch(url, { headers })
+      .then(async (r) => {
+        console.log('[Dashboard] /api/deadlines status:', r.status);
+        const text = await r.text();
+        console.log('[Dashboard] raw response text:', text.slice(0, 200));
+        
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch (e) {
+          console.error('[Dashboard] JSON parse failed:', e);
+          return setDeadlines([]);
+        }
+
+        console.log('[Dashboard] parsed JSON:', json);
+        setDeadlines(Array.isArray(json) ? json : []);
+      })
+      .catch((err) => {
+        console.error('[Dashboard] FETCH FAILED (likely CORS or network):', err);
+        setDeadlines([]);
+      });
+
+  }, []);
 
   async function refreshUserEvents(email) {
     if (!email) return;
@@ -470,9 +473,6 @@ useEffect(() => {
 
   const today = new Date();
   const todayStart = startOfDay(today);
-  const todayEnd   = addDays(todayStart, 1);
-  const next7End   = addDays(todayStart, 7);
-  const next30End  = addDays(todayStart, 30);
 
   const allowedFiltered = deadlines.filter((item) => {
     const category = item.category || 'other';
@@ -494,22 +494,8 @@ useEffect(() => {
   const firstUpcomingIdx = allAllowedSorted.findIndex(it => getDate(it) >= todayStart);
   const upcomingOnly     = allAllowedSorted.filter(it => getDate(it) >= todayStart);
 
-  let filteredDeadlines;
-  if (rangeFilter === 'today') {
-    filteredDeadlines = allAllowedSorted.filter(it => {
-      const d = getDate(it); return d >= todayStart && d < todayEnd;
-    });
-  } else if (rangeFilter === 'next7') {
-    filteredDeadlines = allAllowedSorted.filter(it => {
-      const d = getDate(it); return d >= todayStart && d < next7End;
-    });
-  } else if (rangeFilter === 'next30') {
-    filteredDeadlines = allAllowedSorted.filter(it => {
-      const d = getDate(it); return d >= todayStart && d < next30End;
-    });
-  } else {
-    filteredDeadlines = includePast ? allAllowedSorted : upcomingOnly;
-  }
+  // includePast toggle only; no rangeFilter now
+  const filteredDeadlines = includePast ? allAllowedSorted : upcomingOnly;
 
   const grouped = filteredDeadlines.reduce((acc, item) => {
     const cat = (item.category || 'other').toLowerCase();
@@ -577,12 +563,6 @@ useEffect(() => {
     });
   }, [allAllowedSorted, pinnedCategorySet, pinnedScrKeySet]);
 
-  const nowKpi = startOfDay(new Date());
-  const todayCount = filteredDeadlines.filter(x => { const dx = getDate(x); return dx >= nowKpi && dx < addDays(nowKpi, 1); }).length;
-  const next7      = filteredDeadlines.filter(x => { const dx = getDate(x); return dx >= nowKpi && dx < addDays(nowKpi, 7); }).length;
-  const next30     = filteredDeadlines.filter(x => { const dx = getDate(x); return dx >= nowKpi && dx < addDays(nowKpi, 30); }).length;
-  const categoriesActive = Object.keys(grouped).length;
-
   const dayAgg = useMemo(() => {
     const agg = {};
     deadlines.forEach(it => {
@@ -602,11 +582,11 @@ useEffect(() => {
   }, [deadlines, userEvents]);
 
   useEffect(() => {
-    if (!includePast || rangeFilter || groupedView) return;
+    if (!includePast || groupedView) return;
     if (firstUpcomingIdx < 0) return;
     const el = listRef.current?.querySelector(`[data-idx="${firstUpcomingIdx}"]`);
     if (el) el.scrollIntoView({ block: 'start' });
-  }, [includePast, rangeFilter, groupedView, firstUpcomingIdx, filteredDeadlines]);
+  }, [includePast, groupedView, firstUpcomingIdx, filteredDeadlines]);
 
   /* ===== layout ===== */
   const pageStyle = {
@@ -629,9 +609,6 @@ useEffect(() => {
     padding: '1rem'
   };
 
-  const sectionTitle = { margin: '0 0 .5rem 0', fontSize: '1.2rem' };
-
-  // ---- Campus contacts (left column) ----
   const CONTACTS = [
     { name: 'Financial Aid',     phone: '425-352-5240', email: 'uwbfaid@uw.edu' },
     { name: 'Registration',      phone: '425-352-5000', email: 'uwbreg@uw.edu' },
@@ -664,7 +641,7 @@ useEffect(() => {
                 border: '1px solid rgba(148,163,184,0.4)',
                 borderRadius: 12,
                 padding: 16,
-                background: 'var(--widget-sub-bg)'   // 🔹 lighter than outer card in dark mode
+                background: 'var(--widget-sub-bg)'
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
@@ -852,9 +829,6 @@ useEffect(() => {
 
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <h3 style={{ marginTop: 0 }}>Recommended Deadlines</h3>
-          <small style={{ color:'#667' }}>
-            ≤4d → pinned categories ≤21d → ladder: Add/Drop → Financial Aid → Registration → Academic (from ≥7d out)
-          </small>
         </div>
 
         <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
@@ -869,17 +843,22 @@ useEffect(() => {
                   exiting.has(k)  ? 'reco-exit'  : ''
                 ].join(' ').trim();
 
+                const canvasStripe = isCanvasItem(item)
+                  ? { boxShadow: '0 -3px 0 #8b5cf6, 0 3px 0 #8b5cf6' }
+                  : {};
+
                 return (
                   <li
                     key={`reco-${k}-${i}`}
                     className={`${cls} deadline-row ${urgencyClass(item.date)}`}
                     style={{
                       padding:'1rem 12px',
-                      borderTop:'1px solid #eee',
+                      borderTop:'1px solid #4b5563',
                       display:'flex',
                       gap:'.75rem',
                       alignItems:'center',
-                      justifyContent:'space-between'
+                      justifyContent:'space-between',
+                      ...canvasStripe
                     }}
                   >
                     <div style={{ display:'flex', alignItems:'center', gap:12, minWidth:0, flex:1 }}>
@@ -890,7 +869,8 @@ useEffect(() => {
                           </strong>
                           <span style={{
                             fontSize:11, color:'#e5e7eb', textTransform:'capitalize',
-                            border:'1px solid #4b5563', borderRadius:999, padding:'2px 6px'
+                            border: isCanvasItem(item) ? '1px solid #8b5cf6' : '1px solid #4b5563',
+                            borderRadius:999, padding:'2px 6px'
                           }}>
                             {item.category || 'other'}
                           </span>
@@ -961,7 +941,16 @@ useEffect(() => {
         .deadline-row.u-past  { --bg: rgba(107, 114,128, .06);  --ring: #9ca3af; }
       `}</style>
 
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: 8 }}>
+      <div
+        style={{
+          display:'flex',
+          alignItems:'center',
+          justifyContent:'space-between',
+          marginBottom: 12,
+          paddingBottom: 4,
+          borderBottom: '1px solid rgba(148,163,184,0.35)'
+        }}
+      >
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <h1 style={{ margin: 0 }}>Student Dashboard</h1>
         </div>
@@ -981,100 +970,26 @@ useEffect(() => {
 
         {/* RIGHT */}
         <main style={{ display: 'grid', gap: '1rem' }}>
+          {/* top-right action row */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
             <div style={{ fontWeight:700 }} />
             <button
               onClick={() => setAddOpen(true)}
-              style={{ padding:'0.5rem 0.75rem', border:'1px solid #6a6a6a', background:'var(--widget-bg)', borderRadius:6, cursor:'pointer' }}
+              style={{
+                padding:'0.5rem 0.75rem',
+                border:'1px solid #6a6a6a',
+                background:'var(--widget-bg)',
+                borderRadius:6,
+                cursor:'pointer'
+              }}
               title="Add a personal event to your pinned list"
             >
               + Add Event
             </button>
           </div>
 
-          {/* Stats with clickable ranges */}
-          <div
-            style={{
-              background: 'var(--widget-bg)',
-              border: '1px solid rgba(148,163,184,0.4)',
-              borderRadius: 12,
-              padding: '0.75rem'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-              <strong>At a glance</strong>
-              <div style={{ display:'flex', gap:10 }}>
-                {rangeFilter && (
-                  <button onClick={() => setRangeFilter(null)} style={{ border: 'none', background: 'transparent', color: '#60a5fa', cursor: 'pointer' }}>
-                    Clear range
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    setRangeFilter(null);
-                    if (!groupedView) {
-                      const idx = firstUpcomingIdx;
-                      if (idx >= 0) {
-                        const el = listRef.current?.querySelector(`[data-idx="${idx}"]`);
-                        if (el) el.scrollIntoView({ block: 'start' });
-                      }
-                    }
-                  }}
-                  style={{ border: 'none', background: 'transparent', color: '#60a5fa', cursor: 'pointer' }}
-                  title="Scroll to today's first upcoming item"
-                >
-                  Skip to today
-                </button>
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem' }}>
-              <div style={{ border: '1px solid #4b5563', borderRadius: 10, padding: '10px' }}>
-                <div style={{ fontSize: 12, color: '#9ca3af' }}>Today</div>
-                <button
-                  onClick={() => setRangeFilter('today')}
-                  style={{ fontSize: 22, fontWeight: 700, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, color:'#f9fafb' }}
-                >
-                  {todayCount}
-                </button>
-              </div>
-              <div style={{ border: '1px solid #4b5563', borderRadius: 10, padding: '10px' }}>
-                <div style={{ fontSize: 12, color: '#9ca3af' }}>Next 7 Days</div>
-                <button
-                  onClick={() => setRangeFilter('next7')}
-                  style={{ fontSize: 22, fontWeight: 700, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, color:'#f9fafb' }}
-                >
-                  {next7}
-                </button>
-              </div>
-              <div style={{ border: '1px solid #4b5563', borderRadius: 10, padding: '10px' }}>
-                <div style={{ fontSize: 12, color: '#9ca3af' }}>Next 30 Days</div>
-                <button
-                  onClick={() => setRangeFilter('next30')}
-                  style={{ fontSize: 22, fontWeight: 700, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, color:'#f9fafb' }}
-                >
-                  {next30}
-                </button>
-              </div>
-              <div style={{ border: '1px solid #4b5563', borderRadius: 10, padding: '10px' }}>
-                <div style={{ fontSize: 12, color: '#9ca3af' }}>Pinned</div>
-                <div style={{ fontSize: 22, fontWeight: 700 }}>{pinnedItems.length}</div>
-              </div>
-              <div style={{ border: '1px solid #4b5563', borderRadius: 10, padding: '10px' }}>
-                <div style={{ fontSize: 12, color: '#9ca3af' }}>Active Categories</div>
-                <div style={{ fontSize: 22, fontWeight: 700 }}>{categoriesActive}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* 🔹 Upcoming 4 Weeks diagram card now matches other widgets */}
-          <div
-            style={{
-              background:'var(--widget-bg)',
-              border:'1px solid rgba(148,163,184,0.4)',
-              borderRadius:12,
-              padding:'1rem'
-            }}
-          >
+          {/* Upcoming 4 Weeks (sharpened, using shared card style) */}
+          <div style={card}>
             <h3 style={{ marginTop: 0 }}>Upcoming 4 Weeks</h3>
             <UpcomingLoadChart items={filteredDeadlines} weeks={4} />
           </div>
@@ -1086,7 +1001,13 @@ useEffect(() => {
                 <h3 style={{ marginTop: 0 }}>Pinned Deadlines</h3>
                 <button
                   onClick={() => setAddOpen(true)}
-                  style={{ padding:'0.35rem 0.6rem', border:'1px solid #6a6a6a', background:'var(--widget-bg)', borderRadius:6, cursor:'pointer' }}
+                  style={{
+                    padding:'0.35rem 0.6rem',
+                    border:'1px solid #6a6a6a',
+                    background:'var(--widget-bg)',
+                    borderRadius:6,
+                    cursor:'pointer'
+                  }}
                   title="Add a personal event"
                 >
                   + Add Event
@@ -1095,6 +1016,10 @@ useEffect(() => {
               <ul style={{ paddingLeft: 0, listStyle: 'none', margin: 0, display: 'grid', gap: 8 }}>
                 {pinnedItems.map((item, i) => {
                   const isPersonal = item._source === 'personal';
+                  const canvasStripe = !isPersonal && isCanvasItem(item)
+                    ? { boxShadow: '0 -3px 0 #8b5cf6, 0 3px 0 #8b5cf6' }
+                    : {};
+
                   return (
                     <li
                       key={`pin-${item._key}-${i}`}
@@ -1106,20 +1031,36 @@ useEffect(() => {
                         display: 'flex',
                         alignItems: 'center',
                         gap: 12,
-                        justifyContent:'space-between'
+                        justifyContent:'space-between',
+                        ...canvasStripe
                       }}
                     >
                       <div style={{ flex: 1, minWidth:0 }}>
                         <div style={{ fontWeight: 600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                           {item.event}
                           {isPersonal && (
-                            <span style={{ marginLeft:8, fontSize:11, color:'#e5e7eb', border:'1px solid #4b5563', borderRadius:999, padding:'2px 6px' }}>
+                            <span style={{
+                              marginLeft:8,
+                              fontSize:11,
+                              color:'#e5e7eb',
+                              border:'1px solid #4b5563',
+                              borderRadius:999,
+                              padding:'2px 6px'
+                            }}>
                               personal
                             </span>
                           )}
                         </div>
                         {!isPersonal && (
-                          <div style={{ fontSize: 12, color: '#9ca3af', textTransform: 'capitalize' }}>{item.category || 'other'}</div>
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color: '#9ca3af',
+                              textTransform: 'capitalize'
+                            }}
+                          >
+                            {item.category || 'other'}
+                          </div>
                         )}
                       </div>
                       <span style={DATE_BADGE_STYLE}>{fmtDate(item.date)}</span>
@@ -1128,7 +1069,14 @@ useEffect(() => {
                           <button
                             type="button"
                             onClick={() => deletePersonal(item._id, item._key)}
-                            style={{ border: '1px solid #b91c1c', padding: '0.25rem 0.5rem', borderRadius: 6, cursor: 'pointer', background:'#7f1d1d', color:'#fee2e2' }}
+                            style={{
+                              border: '1px solid #b91c1c',
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: 6,
+                              cursor: 'pointer',
+                              background:'#7f1d1d',
+                              color:'#fee2e2'
+                            }}
                             title="Delete personal event"
                           >
                             🗑 Delete
@@ -1156,7 +1104,12 @@ useEffect(() => {
           {groupedView ? (
             <div style={card}>
               <h3 style={{ marginTop: 0 }}>Deadlines by Category</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px', marginTop: 8 }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                gap: '12px',
+                marginTop: 8
+              }}>
                 {Object.keys(grouped).sort().map(cat => (
                   <div
                     key={cat}
@@ -1167,14 +1120,31 @@ useEffect(() => {
                       background: 'var(--widget-bg)'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <h4 style={{ margin: 0, fontSize: '1.05rem', textTransform: 'capitalize' }}>{cat.replace('-', ' ')}</h4>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 8
+                    }}>
+                      <h4 style={{ margin: 0, fontSize: '1.05rem', textTransform: 'capitalize' }}>
+                        {cat.replace('-', ' ')}
+                      </h4>
                       <span style={{ fontSize: 12, color: '#9ca3af' }}>{grouped[cat].length}</span>
                     </div>
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, maxHeight: 320, overflowY: 'auto' }}>
+                    <ul style={{
+                      listStyle: 'none',
+                      padding: 0,
+                      margin: 0,
+                      maxHeight: 320,
+                      overflowY: 'auto'
+                    }}>
                       {grouped[cat].map((item, index) => {
                         const k = keyForScraped(item);
                         const isPinned = pinnedKeys.has(k);
+                        const canvasStripe = isCanvasItem(item)
+                          ? { boxShadow: '0 -3px 0 #8b5cf6, 0 3px 0 #8b5cf6' }
+                          : {};
+
                         return (
                           <li
                             key={`${cat}-${index}`}
@@ -1185,14 +1155,26 @@ useEffect(() => {
                               display: 'flex',
                               gap: 8,
                               alignItems: 'center',
-                              justifyContent:'space-between'
+                              justifyContent:'space-between',
+                              ...canvasStripe
                             }}
                           >
                             <div style={{ minWidth:0 }}>
-                              <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <span style={{
+                                fontWeight: 600,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}>
                                 {item.event || 'Untitled'}
                               </span>
-                              <div style={{ fontSize: 12, color: '#9ca3af', textTransform: 'capitalize' }}>{item.category || 'other'}</div>
+                              <div style={{
+                                fontSize: 12,
+                                color: '#9ca3af',
+                                textTransform: 'capitalize'
+                              }}>
+                                {item.category || 'other'}
+                              </div>
                             </div>
                             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                               <span style={DATE_BADGE_STYLE}>{fmtDate(item.date)}</span>
@@ -1218,12 +1200,7 @@ useEffect(() => {
             <RecommendedCard items={recommended} />
           )}
 
-          {/* Mini-calendar modal + Add Event modal unchanged except colors (you can keep as-is) */}
-          {/* ... (rest of file unchanged from your version) ... */}
-          
-          {/* I left the modal section as-is to keep the answer manageable; 
-              if you want those dialogs fully dark-themed too, 
-              send just that bottom part and we’ll re-skin it. */}
+          {/* (Your mini-calendar + Add Event modal can remain as-is below) */}
         </main>
       </div>
     </div>
