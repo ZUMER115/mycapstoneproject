@@ -257,13 +257,12 @@ const UpcomingLoadChart = ({ items, weeks = 8 }) => {
       {data.map((d, i) => (
         <div key={i} style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr max-content', gap: 12, alignItems: 'center' }}>
           <div className="week-label" style={{ fontSize: 13.5 }}>
-  {d.label}
-</div>
+            {d.label}
+          </div>
           <div
-  className="week-bar-remaining"
-  style={{ position: 'relative', height: 12, borderRadius: 999 }}
->
-
+            className="week-bar-remaining"
+            style={{ position: 'relative', height: 12, borderRadius: 999 }}
+          >
             <div
               title={`${d.count} deadline${d.count === 1 ? '' : 's'}`}
               style={{
@@ -327,6 +326,7 @@ const Dashboard = () => {
   const [userEmail, setUserEmail] = useState('');
   const [deadlines, setDeadlines] = useState([]);
   const [categoryFilters, setCategoryFilters] = useState({});
+  const [campusPref, setCampusPref] = useState('both'); // 'uwb' | 'uws' | 'both'
 
   const [userEvents, setUserEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
@@ -353,7 +353,7 @@ const Dashboard = () => {
 
   const keyForScraped = (item) => {
     const iso = toISODateSafe(item.date || item.dateText || item.text || item.event) || '';
-       const title = (item.event || item.title || '').toLowerCase().slice(0, 80);
+    const title = (item.event || item.title || '').toLowerCase().slice(0, 80);
     return `scr|${iso}|${title}`;
   };
   const keyForPersonal = (evt) => `me|${evt._id}`;
@@ -365,6 +365,26 @@ const Dashboard = () => {
       const data = await r.json();
       if (r.ok && Array.isArray(data.pins)) {
         setPinnedKeys(new Set(data.pins.map(p => p.key)));
+      }
+    })();
+  }, [userEmail]);
+
+  // Load campus preference to show in the header badge
+  useEffect(() => {
+    if (!userEmail) return;
+
+    (async () => {
+      try {
+        const res = await fetch(
+          `${API}/api/preferences/${encodeURIComponent(userEmail)}`
+        );
+        if (!res.ok) return;
+        const pref = await res.json();
+        if (pref && typeof pref.campus_preference === 'string') {
+          setCampusPref(pref.campus_preference);
+        }
+      } catch (e) {
+        console.error('[Dashboard] failed to load campus preference:', e);
       }
     })();
   }, [userEmail]);
@@ -573,6 +593,13 @@ const Dashboard = () => {
     });
     return agg;
   }, [deadlines, userEvents]);
+  
+  const campusLabel =
+    campusPref === 'uwb'
+      ? 'UW Bothell'
+      : campusPref === 'uws'
+      ? 'UW Seattle'
+      : 'UW Bothell + UW Seattle';
 
   useEffect(() => {
     if (!includePast || groupedView) return;
@@ -651,24 +678,23 @@ const Dashboard = () => {
                 )}
               </div>
 
-<div
-  className="contact-info"
-  style={{ fontSize: 16, marginTop: 8, display: 'grid', gap: 6, lineHeight: 1.45 }}
->
-
-  {c.phone && (
-    <div>
-      <span>Phone: </span>
-      <a href={telHref(c.phone)}>{c.phone}</a>
-    </div>
-  )}
-  {c.email && (
-    <div>
-      <span>Email: </span>
-      <a href={`mailto:${c.email}`}>{c.email}</a>
-    </div>
-  )}
-</div>
+              <div
+                className="contact-info"
+                style={{ fontSize: 16, marginTop: 8, display: 'grid', gap: 6, lineHeight: 1.45 }}
+              >
+                {c.phone && (
+                  <div>
+                    <span>Phone: </span>
+                    <a href={telHref(c.phone)}>{c.phone}</a>
+                  </div>
+                )}
+                {c.email && (
+                  <div>
+                    <span>Email: </span>
+                    <a href={`mailto:${c.email}`}>{c.email}</a>
+                  </div>
+                )}
+              </div>
 
               <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                 {c.phone && <a href={telHref(c.phone)} style={BTN}>Call</a>}
@@ -881,31 +907,30 @@ const Dashboard = () => {
                           <strong style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
                             {item.event || 'Untitled'}
                           </strong>
-<span
-  className="deadline-chip"
-  style={{
-    textTransform: 'capitalize',
-    border: isCanvasItem(item) ? '1px solid #8b5cf6' : undefined
-  }}
->
-  {item.category || 'other'}
-</span>
-
+                          <span
+                            className="deadline-chip"
+                            style={{
+                              textTransform: 'capitalize',
+                              border: isCanvasItem(item) ? '1px solid #8b5cf6' : undefined
+                            }}
+                          >
+                            {item.category || 'other'}
+                          </span>
                         </div>
                       </div>
                     </div>
 
                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                       <span style={DATE_BADGE_STYLE}>{fmtDate(item.date)}</span>
-<button
-  type="button"
-  disabled={!userEmail}
-  onClick={() => togglePinOnServer(buildScrapedPayload(item))}
-  className="pin-btn"
-  title={isPinned ? 'Unpin' : 'Pin'}
->
-  {isPinned ? '★ Unpin' : '☆ Pin'}
-</button>
+                      <button
+                        type="button"
+                        disabled={!userEmail}
+                        onClick={() => togglePinOnServer(buildScrapedPayload(item))}
+                        className="pin-btn"
+                        title={isPinned ? 'Unpin' : 'Pin'}
+                      >
+                        {isPinned ? '★ Unpin' : '☆ Pin'}
+                      </button>
                     </div>
                   </li>
                 );
@@ -979,8 +1004,25 @@ const Dashboard = () => {
       >
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <h1 style={{ margin: 0 }}>Student Dashboard</h1>
+          <span
+            style={{
+              fontSize: 12,
+              padding: '4px 10px',
+              borderRadius: 999,
+              background: '#eef2ff',
+              color: '#3730a3',
+              border: '1px solid #c7d2fe',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em'
+            }}
+          >
+            {campusLabel}
+          </span>
         </div>
-        <p style={{ marginTop: 4 }}>Welcome, <strong>{userEmail || '...'}</strong></p>
+        <p style={{ marginTop: 4 }}>
+          Welcome, <strong>{userEmail || '...'}</strong>
+        </p>
       </div>
 
       <div className={`drawer ${navOpen ? 'open' : ''}`} aria-hidden={!navOpen}>
@@ -996,7 +1038,7 @@ const Dashboard = () => {
 
         {/* RIGHT */}
         <main style={{ display: 'grid', gap: '1rem' }}>
-          {/* Upcoming 4 Weeks (sharpened, using shared card style) */}
+          {/* Upcoming 4 Weeks */}
           <div style={card}>
             <h3 style={{ marginTop: 0 }}>Upcoming 4 Weeks</h3>
             <UpcomingLoadChart items={filteredDeadlines} weeks={4} />
@@ -1090,16 +1132,15 @@ const Dashboard = () => {
                             🗑 Delete
                           </button>
                         ) : (
-<button
-  type="button"
-  disabled={!userEmail}
-  onClick={() => togglePinOnServer({ key: item._key })}
-  className="pin-btn"
-  title="Unpin"
->
-  ★ Unpin
-</button>
-
+                          <button
+                            type="button"
+                            disabled={!userEmail}
+                            onClick={() => togglePinOnServer({ key: item._key })}
+                            className="pin-btn"
+                            title="Unpin"
+                          >
+                            ★ Unpin
+                          </button>
                         )}
                       </div>
                     </li>
@@ -1187,16 +1228,15 @@ const Dashboard = () => {
                             </div>
                             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                               <span style={DATE_BADGE_STYLE}>{fmtDate(item.date)}</span>
-<button
-  type="button"
-  disabled={!userEmail}
-  onClick={() => togglePinOnServer(buildScrapedPayload(item))}
-  className="pin-btn"
-  title={isPinned ? 'Unpin' : 'Pin'}
->
-  {isPinned ? '★ Unpin' : '☆ Pin'}
-</button>
-
+                              <button
+                                type="button"
+                                disabled={!userEmail}
+                                onClick={() => togglePinOnServer(buildScrapedPayload(item))}
+                                className="pin-btn"
+                                title={isPinned ? 'Unpin' : 'Pin'}
+                              >
+                                {isPinned ? '★ Unpin' : '☆ Pin'}
+                              </button>
                             </div>
                           </li>
                         );

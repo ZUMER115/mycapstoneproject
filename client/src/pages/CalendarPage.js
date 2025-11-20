@@ -246,13 +246,18 @@ export default function CalendarPage() {
   }, []);
 
   // scraped deadlines (UW Bothell calendar)
+  // scraped deadlines (UW calendars, filtered by campus preference on the backend)
   useEffect(() => {
-    fetch(`${API}/api/deadlines`)
+    const token = localStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    fetch(`${API}/api/deadlines`, { headers })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => setDeadlines(Array.isArray(data) ? data : []))
       .catch(() => setDeadlines([]))
       .finally(() => setLoading(false));
   }, []);
+
 
   // personal + Canvas (.ics) events (both live in /api/events; Canvas ones should have category 'canvas')
   useEffect(() => {
@@ -596,7 +601,7 @@ export default function CalendarPage() {
           /* Zoom-out tweak: slightly shorter rows */
           .fc .fc-daygrid-day,
           .fc .fc-daygrid-day-frame {
-            min-height: 130px;
+            min-height: 100px; /* was 130px */
           }
 
           .fc .fc-daygrid-event-harness { margin-bottom: 8px; }
@@ -616,7 +621,7 @@ export default function CalendarPage() {
             overflow-wrap: anywhere;
             word-break: break-word;
             hyphens: auto;
-            font-size: 18.5px;
+            font-size: 15px;
             font-weight: 600;
             line-height: 1.28;
             padding: 6px 10px;
@@ -641,7 +646,7 @@ export default function CalendarPage() {
           firstDay={0}
           fixedWeekCount={false}
           /* Zoom-out: slightly higher aspect ratio (smaller rows) */
-          aspectRatio={1.15}
+          aspectRatio={1.4}
           eventDisplay="block"
           eventContent={renderEventContent}
           eventDidMount={(arg) =>
