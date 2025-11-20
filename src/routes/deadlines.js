@@ -131,20 +131,21 @@ router.get('/deadlines', async (req, res) => {
     }
 
     // 3) annotate the title with merged sessions to make it clear
-    const deduped = Array.from(map.values()).map(x => {
-      const sessions = Array.from(x._sessions || []);
-      const tag = sessions.length ? ` (${sessions.join('/')})` : '';
+const deduped = Array.from(map.values()).map(x => {
+  const sessions = Array.from(x._sessions || []);
+  const tag = sessions.length ? ` (${sessions.join('/')})` : '';
 
-      // Grab the original date string from whichever field it lives on
-      const rawDate = x.date || x.dateText || x.text || x.event;
+  const rawDate = x.date || x.dateText || x.text || x.event;
 
-      return {
-        event: x.event + tag,
-        date: rawDate,                 // raw string; frontend will parse it
-        category: x.category || 'other',
-        source: 'uw',                  // 👈 mark as UW/Bothell deadline
-      };
-    });
+  return {
+    event: x.event + tag,
+    date: rawDate,
+    category: x.category || 'other',
+    source: 'uw',
+    campus: x.campus || 'uwb',   // 👈 NEW: uwb / uws
+  };
+});
+
 
     // 4) Optionally pull Canvas events for logged-in user
     const userId = getUserIdFromRequest(req);

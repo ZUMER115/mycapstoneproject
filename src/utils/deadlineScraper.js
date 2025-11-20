@@ -3,10 +3,11 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const dayjs = require('dayjs');
 
-const BASE = 'https://www.uwb.edu/academic-calendar';
+const BOTHELL_BASE = 'https://www.uwb.edu/academic-calendar';
+const SEATTLE_BASE = 'https://www.washington.edu/students/reg';
 
-/* ========= STATIC list (keeps previous year/known pages alive) ========= */
-const STATIC_URLS = [
+/* ========= STATIC list (Bothell, keeps previous year/known pages alive) ========= */
+const STATIC_URLS_BOTHELL = [
   'https://www.uwb.edu/academic-calendar/2024-2025-calendars/application-deadlines-2024-2025',
   'https://www.uwb.edu/academic-calendar/2024-2025-calendars/dates-of-instruction-2024-2025',
   'https://www.uwb.edu/academic-calendar/2024-2025-calendars/grade-deadlines-2024-2025',
@@ -15,7 +16,12 @@ const STATIC_URLS = [
   'https://www.uwb.edu/academic-calendar/2024-2025-calendars/u-pass-activation-dates-payment-due-dates-2024-2025'
 ];
 
-/* ========= Slugs we’ll try to auto-discover for current/next years ========= */
+/* ========= UW Seattle static URLs (one page per AY) ========= */
+const STATIC_URLS_SEATTLE = [
+  `${SEATTLE_BASE}/2526cal.html`,   // 2025–2026
+];
+
+/* ========= Bothell slugs for auto-discovery ========= */
 const SLUGS = [
   'application-deadlines',
   'dates-of-instruction',
@@ -32,9 +38,6 @@ const MONTHS = {
   Oct: 'October', Nov: 'November', Dec: 'December'
 };
 
-
-
-
 // Normalize common abbrevs (e.g., "Sept." -> "September")
 function normalizeMonths(s) {
   return String(s || '').replace(
@@ -47,8 +50,9 @@ function normalizeMonths(s) {
  * Parse many formats and return a dayjs (first day if range).
  * Examples:
  * - "October 2, 2025"
- * - "October 2–8, 2025"  (en dash)
+ * - "October 2–8, 2025"
  * - "Oct 31–Nov 3, 2025"
+ * - "Dec 13, 2025–Jan 4, 2026"
  * - "10/02/2025"
  * Returns: dayjs or null
  */
@@ -70,14 +74,21 @@ function parseDateSmart(raw) {
     return dayjs(`${M} ${d1}, ${Y}`);
   }
 
-  // 3) "Month D–Month D, YYYY" (cross-month)
+  // 3) "Month D–Month D, YYYY" (cross-month, same year)
   m = s.match(/^([A-Za-z]+)\s(\d{1,2})\s*[-–]\s*([A-Za-z]+)\s(\d{1,2}),\s*(\d{4})$/);
   if (m) {
     const [, M1, d1, _M2, _d2, Y] = m;
     return dayjs(`${M1} ${d1}, ${Y}`);
   }
 
-  // 4) "M/D–M/D/YYYY" or "M/D–D/YYYY" (rare)
+  // 4) "Month D, YYYY–Month D, YYYY" (cross-year or explicit years)
+  m = s.match(/^([A-Za-z]+)\s(\d{1,2}),\s*(\d{4})\s*[-–]\s*([A-Za-z]+)\s(\d{1,2}),\s*(\d{4})$/);
+  if (m) {
+    const [, M1, d1, Y1] = m;
+    return dayjs(`${M1} ${d1}, ${Y1}`);
+  }
+
+  // 5) "M/D–M/D/YYYY" or "M/D–D/YYYY"
   m = s.match(/^(\d{1,2})\/(\d{1,2})\s*[-–]\s*(\d{1,2})\/?(\d{1,2})?,\s*(\d{4})$/);
   if (m) {
     const [, M1, d1, _M2orD, _Dmaybe, Y] = m;
@@ -85,6 +96,23 @@ function parseDateSmart(raw) {
   }
 
   return null;
+}
+
+/**
+ * Some cells have multiple lines:
+ * "Winter Break\nDec 13, 2025–Jan 4, 2026"
+ * Try to pull the line that parses as a date.
+ */
+function extractDateFromCell(raw) {
+  if (!raw) return '';
+  const cleaned = String(raw).replace(/\u00a0/g, ' ').trim();
+  const parts = cleaned.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  for (const part of parts) {
+    const parsed = parseDateSmart(part);
+    if (parsed && parsed.isValid()) return part;
+  }
+  // fallback: try whole text
+  return cleaned;
 }
 
 /* ---------------- categorization ---------------- */
@@ -111,7 +139,7 @@ function categoryFromSlug(slug) {
   return 'other';
 }
 
-/* ---------------- year helpers ---------------- */
+/* ---------------- year helpers (Bothell) ---------------- */
 function currentAY() {
   const now = new Date();
   const y = now.getFullYear();
@@ -120,16 +148,16 @@ function currentAY() {
 }
 function candidatesFor(slug, y1, y2) {
   return [
-    `${BASE}/${slug}-${y1}-${y2}`,                               // flat/new
-    `${BASE}/${y1}-${y2}-calendars/${slug}-${y1}-${y2}`          // folder/old
+    `${BOTHELL_BASE}/${slug}-${y1}-${y2}`,                               // flat/new
+    `${BOTHELL_BASE}/${y1}-${y2}-calendars/${slug}-${y1}-${y2}`          // folder/old
   ];
 }
-function buildDiscoveredUrls() {
+function buildDiscoveredUrlsBothell() {
   const [c1, c2] = currentAY();
   const years = [
-    [c1, c2],           // current AY
-    [c2, c2 + 1],       // next AY
-    [c2 + 1, c2 + 2],   // next+1 AY (future)
+    [c1, c2],
+    [c2, c2 + 1],
+    [c2 + 1, c2 + 2],
   ];
   const urls = new Set();
   for (const [y1, y2] of years) {
@@ -145,9 +173,18 @@ function slugFromUrl(url) {
 }
 
 /* ---------------- core scrape ---------------- */
-async function scrapePage(url, out) {
+/**
+ * campus: 'uwb' | 'uws'
+ * opts: { skipHolidaysTable?: boolean }
+ */
+async function scrapePage(url, out, campus, opts = {}) {
+  const { skipHolidaysTable = false } = opts;
+
   try {
-    const { data, status } = await axios.get(url, { timeout: 20000, validateStatus: s => s < 500 });
+    const { data, status } = await axios.get(url, {
+      timeout: 20000,
+      validateStatus: s => s < 500
+    });
     if (status === 404 || !data || typeof data !== 'string') return;
 
     const $ = cheerio.load(data);
@@ -160,8 +197,22 @@ async function scrapePage(url, out) {
     tables.each((_, table) => {
       // nearest heading as context
       let tableHeading = '';
-      const prev = $(table).prevAll('h1, h2, h3, h4, p').first();
+      const prev = $(table).prevAll('h1, h2, h3, h4, p, strong').first();
       if (prev.length) tableHeading = prev.text().trim();
+      const headingLower = tableHeading.toLowerCase();
+
+      // Skip *holiday* table on the Seattle page
+      if (skipHolidaysTable && headingLower.includes('holiday')) {
+        return;
+      }
+
+      // Collect column headers (for Schema C)
+      const headerCells = [];
+      $(table)
+        .find('thead th')
+        .each((i, th) => {
+          headerCells.push($(th).text().trim());
+        });
 
       let lastEvent = '';
 
@@ -174,7 +225,8 @@ async function scrapePage(url, out) {
         if (ths.length && tds.length) {
           lastEvent = ths.first().text().trim() || lastEvent;
           tds.each((i2, cell) => {
-            const rawDate = $(cell).text().trim();
+            const rawDateText = $(cell).text().trim();
+            const rawDate = extractDateFromCell(rawDateText);
             const parsed = parseDateSmart(rawDate);
             if (!parsed?.isValid()) return;
             const title = lastEvent;
@@ -187,28 +239,75 @@ async function scrapePage(url, out) {
               event: title,
               date: rawDate,
               dateObj: parsed.toDate(),
-              category
+              category,
+              campus,
             });
           });
           return;
         }
 
-        // Schema B: 2 columns -> [date][title]
+        // Schema B: [date][title] (Bothell)
+        // Schema C: [title][date1][date2]...[dateN] (Seattle)
         if (!ths.length && tds.length >= 2) {
-          const rawDate = $(tds.get(0)).text().trim();
-          const title   = $(tds.get(1)).text().trim();
-          const parsed  = parseDateSmart(rawDate);
-          if (!parsed?.isValid() || !title) return;
+          const firstTextRaw = $(tds.get(0)).text().trim();
+          const secondTextRaw = $(tds.get(1)).text().trim();
 
-          let category = categorize(title, tableHeading);
-          if (category === 'other') category = slugDefault;
+          const firstDateCandidate = extractDateFromCell(firstTextRaw);
+          const secondDateCandidate = extractDateFromCell(secondTextRaw);
+          const firstIsDate = !!parseDateSmart(firstDateCandidate);
+          const secondIsDate = !!parseDateSmart(secondDateCandidate);
 
-          out.push({
-            event: title,
-            date: rawDate,
-            dateObj: parsed.toDate(),
-            category
+          // ---- Schema B: [date][title]
+          if (firstIsDate && !secondIsDate) {
+            const rawDate = firstDateCandidate;
+            const title = secondTextRaw;
+            const parsed = parseDateSmart(rawDate);
+            if (!parsed?.isValid() || !title) return;
+
+            let category = categorize(title, tableHeading);
+            if (category === 'other') category = slugDefault;
+
+            out.push({
+              event: title,
+              date: rawDate,
+              dateObj: parsed.toDate(),
+              category,
+              campus,
+            });
+            return;
+          }
+
+          // ---- Schema C: [title][date1][date2]...[dateN]
+          const baseTitle = firstTextRaw;
+          if (!baseTitle) return;
+
+          let hasAnyDate = false;
+          tds.slice(1).each((idx, cell) => {
+            const rawText = $(cell).text().trim();
+            const rawDate = extractDateFromCell(rawText);
+            const parsed = parseDateSmart(rawDate);
+            if (!parsed?.isValid()) return;
+
+            hasAnyDate = true;
+
+            const headerLabel = headerCells[idx + 1] || ''; // col0 is "CALENDAR EVENT / ITEM"
+            const finalTitle = headerLabel
+              ? `${baseTitle} (${headerLabel})`
+              : baseTitle;
+
+            let category = categorize(finalTitle, tableHeading);
+            if (category === 'other') category = slugDefault;
+
+            out.push({
+              event: finalTitle,
+              date: rawDate,
+              dateObj: parsed.toDate(),
+              category,
+              campus,
+            });
           });
+
+          if (hasAnyDate) return;
         }
       });
     });
@@ -222,25 +321,36 @@ async function scrapePage(url, out) {
 async function fetchAllDeadlines() {
   const deadlines = [];
 
-  // 1) Always scrape your static “known-good” pages (persists old content)
-  for (const url of STATIC_URLS) {
+  // 1) Bothell: static “known-good” pages
+  for (const url of STATIC_URLS_BOTHELL) {
     // eslint-disable-next-line no-await-in-loop
-    await scrapePage(url, deadlines);
+    await scrapePage(url, deadlines, 'uwb');
   }
 
-  // 2) Also try discovered pages for current/next years (auto future)
-  const discovered = buildDiscoveredUrls();
-  for (const url of discovered) {
-    // skip if already in static list
-    if (STATIC_URLS.includes(url)) continue;
+  // 2) Bothell: discovered pages for current/next years
+  const discoveredBothell = buildDiscoveredUrlsBothell();
+  for (const url of discoveredBothell) {
+    if (STATIC_URLS_BOTHELL.includes(url)) continue;
     // eslint-disable-next-line no-await-in-loop
-    await scrapePage(url, deadlines);
+    await scrapePage(url, deadlines, 'uwb');
   }
 
-  // 3) Sort and return lean objects
+  // 3) Seattle: single AY page(s), skipping the Holiday table
+  for (const url of STATIC_URLS_SEATTLE) {
+    // eslint-disable-next-line no-await-in-loop
+    await scrapePage(url, deadlines, 'uws', { skipHolidaysTable: true });
+  }
+
+  // 4) Sort and return lean objects
   deadlines.sort((a, b) => a.dateObj - b.dateObj);
-  return deadlines.map(({ event, date, category }) => ({ event, date, category }));
+  return deadlines.map(({ event, date, category, campus }) => ({
+    event,
+    date,
+    category,
+    campus,
+  }));
 }
+
 const Deadline = require('../models/Deadlines.js');
 
 /**
@@ -249,32 +359,38 @@ const Deadline = require('../models/Deadlines.js');
 async function getOrPopulateDeadlines() {
   const existing = await Deadline.find({}).lean();
 
-  // If we already have complete docs, just use them
   const hasComplete =
     existing.length > 0 &&
-    existing.every(d => typeof d.date === 'string' && d.date &&
-                         typeof d.category === 'string' && d.category);
+    existing.every(
+      d =>
+        typeof d.date === 'string' && d.date &&
+        typeof d.category === 'string' && d.category &&
+        typeof d.campus === 'string' && d.campus
+    );
 
   if (hasComplete) {
-    console.log(`📦 Using ${existing.length} cached deadlines (with date + category)`);
+    console.log(
+      `📦 Using ${existing.length} cached deadlines (with date + category + campus)`
+    );
     return existing;
   }
 
   // Either DB is empty or docs are missing fields -> rebuild from scraper
   if (existing.length > 0) {
-    console.log('⚠️ Found deadlines without date/category — clearing collection and rescraping...');
+    console.log(
+      '⚠️ Found deadlines without required fields — clearing collection and rescraping...'
+    );
     await Deadline.deleteMany({});
   } else {
     console.log('⚙️ No deadlines in DB — scraping fresh data...');
   }
 
-  const scraped = await fetchAllDeadlines(); // <- already computes date & category
+  const scraped = await fetchAllDeadlines();
   if (scraped?.length) {
     await Deadline.insertMany(scraped);
     console.log(`✅ Inserted ${scraped.length} deadlines into MongoDB`);
   }
   return scraped;
 }
-
 
 module.exports = { fetchAllDeadlines, getOrPopulateDeadlines };
