@@ -28,6 +28,7 @@ export default function Profile() {
   const [icsFile, setIcsFile] = useState(null);
   const [icsStatus, setIcsStatus] = useState('');
   const [icsLoading, setIcsLoading] = useState(false);
+  const [campusPref, setCampusPref] = useState('uwb'); // 'uwb' | 'uws' | 'both'
 
   // ---- helpers ----
   const clampLead = (n) => {
@@ -72,13 +73,17 @@ export default function Profile() {
         .then((r) =>
           r.ok ? r.json() : Promise.reject(new Error('Failed to load preferences'))
         )
-        .then((p) => {
-          const ltd = Number(p.lead_time_days ?? 3);
-          const thm = p.theme || 'light';
-          setLeadTimeDays(clampLead(ltd));
-          setTheme(thm);
-          applyTheme(thm);
-        })
+.then((p) => {
+  const ltd = Number(p.lead_time_days ?? 3);
+  const thm = p.theme || 'light';
+  const campus = p.campus_preference || 'uwb'; // 👈 NEW
+
+  setLeadTimeDays(clampLead(ltd));
+  setTheme(thm);
+  applyTheme(thm);
+  setCampusPref(campus); // 👈 NEW
+})
+
         .catch(() => {})
         .finally(() => setLoading(false));
     } catch {
@@ -98,11 +103,12 @@ export default function Profile() {
       const res = await fetch(`${API_BASE}/api/preferences`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          lead_time_days: clampLead(leadTimeDays),
-          theme
-        })
+body: JSON.stringify({
+  email,
+  lead_time_days: clampLead(leadTimeDays),
+  theme,
+  campus_preference: campusPref, // 👈 NEW
+})
       });
 
       const text = await res.text();
@@ -115,11 +121,15 @@ export default function Profile() {
 
       if (!res.ok) throw new Error(data?.message || 'Save failed');
 
-      const storedLead = Number(data.lead_time_days ?? leadTimeDays);
-      const storedTheme = data.theme || theme;
-      setLeadTimeDays(clampLead(storedLead));
-      setTheme(storedTheme);
-      applyTheme(storedTheme);
+const storedLead = Number(data.lead_time_days ?? leadTimeDays);
+const storedTheme = data.theme || theme;
+const storedCampus = data.campus_preference || campusPref; // 👈 NEW
+
+setLeadTimeDays(clampLead(storedLead));
+setTheme(storedTheme);
+applyTheme(storedTheme);
+setCampusPref(storedCampus); // 👈 NEW
+
 
       setMsg({ type: 'ok', text: 'Preferences saved.' });
     } catch (e) {
@@ -566,6 +576,62 @@ export default function Profile() {
             </small>
           </div>
         </section>
+        {/* Campus Preference */}
+<section className={card}>
+  <h3 className="profile-section-title">Campus</h3>
+  <p className="profile-section-sub">
+    Choose which campus&apos;s academic calendar you want Sparely to prioritize.
+  </p>
+
+  <div
+    style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      maxWidth: 420,
+      fontSize: 14,
+      color: 'var(--text-main)',
+    }}
+  >
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <input
+        type="radio"
+        name="campus"
+        value="uwb"
+        checked={campusPref === 'uwb'}
+        onChange={(e) => setCampusPref(e.target.value)}
+      />
+      <span>UW Bothell only</span>
+    </label>
+
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <input
+        type="radio"
+        name="campus"
+        value="uws"
+        checked={campusPref === 'uws'}
+        onChange={(e) => setCampusPref(e.target.value)}
+      />
+      <span>UW Seattle only</span>
+    </label>
+
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <input
+        type="radio"
+        name="campus"
+        value="both"
+        checked={campusPref === 'both'}
+        onChange={(e) => setCampusPref(e.target.value)}
+      />
+      <span>Both Bothell and Seattle</span>
+    </label>
+
+    <small style={{ color: 'var(--text-muted)' }}>
+      This setting won&apos;t change which deadlines are scraped, but it controls which
+      campus you see by default across Sparely.
+    </small>
+  </div>
+</section>
 
         {/* Appearance */}
         <section className={card}>
