@@ -257,7 +257,11 @@ const UpcomingLoadChart = ({ items, weeks = 8 }) => {
       {data.map((d, i) => (
         <div key={i} style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr max-content', gap: 12, alignItems: 'center' }}>
           <div style={{ fontSize: 13.5, color: '#cbd5f5' }}>{d.label}</div>
-          <div style={{ position: 'relative', background: '#111827', height: 12, borderRadius: 999 }}>
+          <div
+  className="week-bar-remaining"
+  style={{ position: 'relative', height: 12, borderRadius: 999 }}
+>
+
             <div
               title={`${d.count} deadline${d.count === 1 ? '' : 's'}`}
               style={{
@@ -291,19 +295,6 @@ const DATE_BADGE_STYLE = {
   textAlign: 'center'
 };
 
-/* 🔹 Dark pin badge so white text shows clearly in dark mode */
-const PIN_BADGE_STYLE = {
-  border: '1px solid #4b5563',
-  padding: '0.25rem 0.6rem',
-  borderRadius: 999,
-  cursor: 'pointer',
-  background: '#111827',
-  color: '#ffffff',
-  fontSize: 13,
-  fontWeight: 600,
-  minWidth: 68,
-  textAlign: 'center'
-};
 
 // 🔹 Helper to detect Canvas items (by category or title)
 const isCanvasItem = (item) => {
@@ -658,20 +649,24 @@ const Dashboard = () => {
                 )}
               </div>
 
-              <div style={{ fontSize: 16, marginTop: 8, display: 'grid', gap: 6, lineHeight: 1.45 }}>
-                {c.phone && (
-                  <div>
-                    <span style={{ color: '#9ca3af' }}>Phone: </span>
-                    <a href={telHref(c.phone)} style={{ fontWeight: 600 }}>{c.phone}</a>
-                  </div>
-                )}
-                {c.email && (
-                  <div>
-                    <span style={{ color: '#9ca3af' }}>Email: </span>
-                    <a href={`mailto:${c.email}`} style={{ fontWeight: 600 }}>{c.email}</a>
-                  </div>
-                )}
-              </div>
+<div
+  className="contact-info"
+  style={{ fontSize: 16, marginTop: 8, display: 'grid', gap: 6, lineHeight: 1.45 }}
+>
+
+  {c.phone && (
+    <div>
+      <span>Phone: </span>
+      <a href={telHref(c.phone)}>{c.phone}</a>
+    </div>
+  )}
+  {c.email && (
+    <div>
+      <span>Email: </span>
+      <a href={`mailto:${c.email}`}>{c.email}</a>
+    </div>
+  )}
+</div>
 
               <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                 {c.phone && <a href={telHref(c.phone)} style={BTN}>Call</a>}
@@ -884,28 +879,31 @@ const Dashboard = () => {
                           <strong style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
                             {item.event || 'Untitled'}
                           </strong>
-                          <span style={{
-                            fontSize:11, color:'#e5e7eb', textTransform:'capitalize',
-                            border: isCanvasItem(item) ? '1px solid #8b5cf6' : '1px solid #4b5563',
-                            borderRadius:999, padding:'2px 6px'
-                          }}>
-                            {item.category || 'other'}
-                          </span>
+<span
+  className="deadline-chip"
+  style={{
+    textTransform: 'capitalize',
+    border: isCanvasItem(item) ? '1px solid #8b5cf6' : undefined
+  }}
+>
+  {item.category || 'other'}
+</span>
+
                         </div>
                       </div>
                     </div>
 
                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                       <span style={DATE_BADGE_STYLE}>{fmtDate(item.date)}</span>
-                      <button
-                        type="button"
-                        disabled={!userEmail}
-                        onClick={() => togglePinOnServer(buildScrapedPayload(item))}
-                        style={PIN_BADGE_STYLE}
-                        title={isPinned ? 'Unpin' : 'Pin'}
-                      >
-                        {isPinned ? '★ Unpin' : '☆ Pin'}
-                      </button>
+<button
+  type="button"
+  disabled={!userEmail}
+  onClick={() => togglePinOnServer(buildScrapedPayload(item))}
+  className="pin-btn"
+  title={isPinned ? 'Unpin' : 'Pin'}
+>
+  {isPinned ? '★ Unpin' : '☆ Pin'}
+</button>
                     </div>
                   </li>
                 );
@@ -937,25 +935,34 @@ const Dashboard = () => {
           outline-offset: 2px;
           border-radius: 4px;
         }  
-        .deadline-row{
-          --bg: transparent; --ring: transparent;
+        .deadline-row {
+          --bg: transparent;
+          --ring: transparent;
           background: var(--bg);
           border-left: 4px solid var(--ring);
           border-radius: 8px;
           transition: background-color .12s ease, box-shadow .12s ease;
         }
-        .deadline-row:hover{
-          background: #1f2933;
-          box-shadow: 0 0 0 1px #4b5563 inset;
+
+        /* Light blue hover in light mode */
+        .deadline-row:hover {
+          background: #e0f2fe;
         }
-        .deadline-row:focus-within{
-          background: #1f2933;
+
+        /* Deep slate hover in dark mode */
+        [data-theme="dark"] .deadline-row:hover {
+          background: #1f2937;
+        }
+
+        .deadline-row:focus-within {
           box-shadow: 0 0 0 2px #60a5fa inset;
         }
+
         .deadline-row.u-1w    { --bg: rgba(239, 68,  68, .08);  --ring: #f87171; }
         .deadline-row.u-2w    { --bg: rgba(245, 158, 11, .10);  --ring: #f59e0b; }
         .deadline-row.u-later { --bg: rgba( 16, 185,129, .08);  --ring: #34d399; }
         .deadline-row.u-past  { --bg: rgba(107, 114,128, .06);  --ring: #9ca3af; }
+
       `}</style>
 
       <div
@@ -1081,15 +1088,16 @@ const Dashboard = () => {
                             🗑 Delete
                           </button>
                         ) : (
-                          <button
-                            type="button"
-                            disabled={!userEmail}
-                            onClick={() => togglePinOnServer({ key: item._key })}
-                            style={PIN_BADGE_STYLE}
-                            title="Unpin"
-                          >
-                            ★ Unpin
-                          </button>
+<button
+  type="button"
+  disabled={!userEmail}
+  onClick={() => togglePinOnServer({ key: item._key })}
+  className="pin-btn"
+  title="Unpin"
+>
+  ★ Unpin
+</button>
+
                         )}
                       </div>
                     </li>
@@ -1177,15 +1185,16 @@ const Dashboard = () => {
                             </div>
                             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                               <span style={DATE_BADGE_STYLE}>{fmtDate(item.date)}</span>
-                              <button
-                                type="button"
-                                disabled={!userEmail}
-                                onClick={() => togglePinOnServer(buildScrapedPayload(item))}
-                                style={PIN_BADGE_STYLE}
-                                title={isPinned ? 'Unpin' : 'Pin'}
-                              >
-                                {isPinned ? '★ Unpin' : '☆ Pin'}
-                              </button>
+<button
+  type="button"
+  disabled={!userEmail}
+  onClick={() => togglePinOnServer(buildScrapedPayload(item))}
+  className="pin-btn"
+  title={isPinned ? 'Unpin' : 'Pin'}
+>
+  {isPinned ? '★ Unpin' : '☆ Pin'}
+</button>
+
                             </div>
                           </li>
                         );
