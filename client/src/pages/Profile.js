@@ -1,6 +1,4 @@
 // src/pages/Profile.jsx
-// At top of the file, define a base (optional but nicer)
-
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
 
@@ -274,38 +272,54 @@ export default function Profile() {
     setIcsStatus('');
   };
 
-const handleIcsUpload = async () => {
-  try {
-    const token = localStorage.getItem('token');
-
-    const res = await fetch(`${API}/api/canvas/import-ics`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ icsText }),
-    });
-
-    if (res.status === 401) {
-      throw new Error('Unauthorized – please log in again.');
+  const handleIcsUpload = async () => {
+    if (!icsFile) {
+      setIcsStatus('Please choose a .ics file first.');
+      return;
     }
 
-    if (!res.ok) {
-      // Try to read server message for debugging
+    setIcsLoading(true);
+    setIcsStatus('');
+
+    try {
+      const icsText = await icsFile.text(); // read file contents
+      const token = getToken();
+
+      const res = await fetch(`${API_BASE}/api/canvas/import-ics`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ icsText })
+      });
+
+      if (res.status === 401) {
+        throw new Error('Unauthorized – please log in again.');
+      }
+
       const text = await res.text();
-      console.error('Canvas import error:', res.status, text);
-      throw new Error('Failed to import Canvas calendar.');
-    }
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { message: text };
+      }
 
-    const data = await res.json();
-    console.log('Canvas import success:', data);
-    alert(`Imported ${data.imported ?? 0} Canvas events.`);
-  } catch (err) {
-    console.error(err);
-    alert(err.message || 'Failed to import Canvas calendar.');
-  }
-};
+      if (!res.ok) {
+        console.error('Canvas import error:', res.status, text);
+        throw new Error(data?.error || data?.message || 'Failed to import Canvas calendar.');
+      }
+
+      const imported = data.imported ?? 0;
+      setIcsStatus(`Imported ${imported} Canvas events.`);
+    } catch (err) {
+      console.error('Canvas import failed:', err);
+      setIcsStatus(err?.message || 'Failed to import Canvas calendar.');
+    } finally {
+      setIcsLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -316,8 +330,8 @@ const handleIcsUpload = async () => {
   }
 
   const card = {
-    background: '#fff',
-    border: '1px solid #e5e7eb',
+    background: 'var(--widget-bg)',
+    border: '1px solid var(--border)',
     borderRadius: 12,
     padding: '1rem'
   };
@@ -459,7 +473,9 @@ const handleIcsUpload = async () => {
                 max={30}
                 step={1}
                 value={leadTimeDays}
-                onChange={(e) => setLeadTimeDays(clampLead(parseInt(e.target.value, 10)))}
+                onChange={(e) =>
+                  setLeadTimeDays(clampLead(parseInt(e.target.value, 10)))
+                }
                 style={{ width: 100, padding: '8px 10px' }}
               />
             </label>
@@ -474,7 +490,14 @@ const handleIcsUpload = async () => {
         {/* Appearance */}
         <section style={card}>
           <h3 style={{ marginTop: 0 }}>Appearance</h3>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 16,
+              alignItems: 'center',
+              flexWrap: 'wrap'
+            }}
+          >
             <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input
                 type="radio"
@@ -537,7 +560,14 @@ const handleIcsUpload = async () => {
             assignments into Sparely.
           </p>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              flexWrap: 'wrap'
+            }}
+          >
             <input
               type="file"
               accept=".ics,text/calendar"
