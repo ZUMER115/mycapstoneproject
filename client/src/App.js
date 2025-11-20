@@ -287,44 +287,6 @@ function AppFrame() {
             color: #fff !important;
           }
 
-          .drawer-tile {
-            background: #1e1e2f;
-            color: #fff;
-            text-decoration: none;
-            border: none;
-            outline: 2px solid #fff;
-            outline-offset: 2px;
-            box-shadow: 0 2px 8px rgba(0,0,0,.2);
-            transition: background .16s ease, color .16s ease, transform .12s ease;
-          }
-
-          .drawer-tile:hover,
-          .drawer-tile:focus-visible {
-            background: #ffffff;
-            color: #111;
-          }
-
-          .drawer-tile:active { transform: translateY(1px); }
-
-          .drawer-tile.active {
-            background: #ffffff;
-            color: #111;
-          }
-
-          .left-drawer .panel .drawer-header{
-            padding: 14px;
-            border-bottom: 1px solid rgba(255,255,255,.18);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #fff;
-          }
-          .left-drawer .panel .drawer-header strong{
-            color: #fff;
-            font-size: 16px;
-            font-weight: 700;
-          }
-
           .drawer-grid{
             gap: 28px !important;
             padding: 22px 16px !important;
@@ -337,114 +299,95 @@ function AppFrame() {
 
       {/* Top Navigation: ONLY when logged in */}
       {token && (
-        <div
-          style={{
-            position: 'sticky',
-            top: 0,
-            zIndex: 2000,
-            display: 'flex',
-            alignItems: 'center',
-            height: 'var(--appbar-h)',
-            padding: '0 12px',
-            backgroundColor: '#800080',
-            borderBottom: '1px solid rgba(255,255,255,.15)'
-          }}
-        >
-          {/* LEFT: Hamburger toggles the left drawer */}
-          <button
-            aria-label={navOpen ? 'Close menu' : 'Open menu'}
-            className="hamburger"
-            onClick={() => setNavOpen((o) => !o)}
-            title={navOpen ? 'Close navigation' : 'Open navigation'}
-            style={{ marginRight: 10 }}
-          >
-            <span className="bar" />
-            <span className="bar" />
-            <span className="bar" />
-          </button>
-
-          {/* TITLE */}
-          <h2
-            style={{
-              color: '#fff',
-              margin: 0,
-              marginLeft: 8,
-              fontSize: 22,
-              fontWeight: 900
-            }}
-          >
-            Sparely
-          </h2>
-
-          {/* RIGHT: dropdown menu */}
-          <div style={{ marginLeft: 'auto' }}>
-            <div className="menu-wrap">
+        <header className="top-nav">
+          <div className="top-nav-inner">
+            {/* LEFT: logo/title + hamburger */}
+            <div className="top-nav-left">
               <button
-                ref={buttonRef}
-                onClick={() => setDropdownOpen((o) => !o)}
-                className="menu-btn"
-                aria-haspopup="true"
-                aria-expanded={dropdownOpen}
-                aria-controls="main-menu"
+                aria-label={navOpen ? 'Close menu' : 'Open menu'}
+                className="hamburger"
+                onClick={() => setNavOpen((o) => !o)}
+                title={navOpen ? 'Close navigation' : 'Open navigation'}
               >
-                Menu{' '}
-                <span className={`chev ${dropdownOpen ? 'open' : ''}`}>▾</span>
+                <span className="bar" />
+                <span className="bar" />
+                <span className="bar" />
               </button>
+              <span>Sparely</span>
+            </div>
 
-              {renderMenu && (
-                <div
-                  id="main-menu"
-                  ref={menuRef}
-                  className={`menu-panel ${
-                    dropdownOpen ? '' : 'closing'
-                  }`}
-                  role="menu"
+            {/* RIGHT: dropdown menu */}
+            <div className="top-nav-right">
+              <div className="menu-wrap">
+                <button
+                  ref={buttonRef}
+                  onClick={() => setDropdownOpen((o) => !o)}
+                  className="menu-btn"
+                  aria-haspopup="true"
+                  aria-expanded={dropdownOpen}
+                  aria-controls="main-menu"
                 >
-                  <Link
-                    to="/dashboard"
-                    style={linkStyle}
-                    onClick={() => setDropdownOpen(false)}
-                    role="menuitem"
+                  Menu{' '}
+                  <span className={`chev ${dropdownOpen ? 'open' : ''}`}>
+                    ▾
+                  </span>
+                </button>
+
+                {renderMenu && (
+                  <div
+                    id="main-menu"
+                    ref={menuRef}
+                    className={`menu-panel ${
+                      dropdownOpen ? '' : 'closing'
+                    }`}
+                    role="menu"
                   >
-                    Dashboard
-                  </Link>
-                  <Link
-                    to="/calendar"
-                    style={linkStyle}
-                    onClick={() => setDropdownOpen(false)}
-                    role="menuitem"
-                  >
-                    Calendar
-                  </Link>
-                  <Link
-                    to="/profile"
-                    style={linkStyle}
-                    onClick={() => setDropdownOpen(false)}
-                    role="menuitem"
-                  >
-                    Profile
-                  </Link>
-                  <button
-                    onClick={() => {
-                      handleLogout();
-                      setDropdownOpen(false);
-                    }}
-                    style={{
-                      ...linkStyle,
-                      background: '#cc0000',
-                      border: 'none',
-                      width: '100%',
-                      textAlign: 'left'
-                    }}
-                    role="menuitem"
-                  >
-                    Logout
-                  </button>
-                </div>
-              )}
+                    <Link
+                      to="/dashboard"
+                      style={linkStyle}
+                      onClick={() => setDropdownOpen(false)}
+                      role="menuitem"
+                    >
+                      Dashboard
+                    </Link>
+                    <Link
+                      to="/calendar"
+                      style={linkStyle}
+                      onClick={() => setDropdownOpen(false)}
+                      role="menuitem"
+                    >
+                      Calendar
+                    </Link>
+                    <Link
+                      to="/profile"
+                      style={linkStyle}
+                      onClick={() => setDropdownOpen(false)}
+                      role="menuitem"
+                    >
+                      Profile
+                    </Link>
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setDropdownOpen(false);
+                      }}
+                      style={{
+                        ...linkStyle,
+                        background: '#cc0000',
+                        border: 'none',
+                        width: '100%',
+                        textAlign: 'left'
+                      }}
+                      role="menuitem"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </header>
       )}
 
       {/* Left slide-in drawer (below the top bar) */}

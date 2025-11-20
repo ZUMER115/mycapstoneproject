@@ -179,3 +179,66 @@
   font-size: 12px;
   color: var(--muted);
 }
+
+/* === Top nav (purple bar) === */
+.top-nav {
+  position: sticky;          /* stays at top when scrolling */
+  top: 0;
+  z-index: 40;
+  background: var(--primary);
+  color: #f9fafb;
+  height: 56px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35); /* subtle but crisp shadow */
+  display: flex;
+  align-items: center;
+}
+
+/* inner content centering + max width */
+.top-nav-inner {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* left side: logo + title */
+.top-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+/* right side: user, links, etc. */
+.top-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+/* little pill around username / profile entry */
+.top-nav-user {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.25);   /* semi-transparent dark */
+  border: 1px solid rgba(15, 23, 42, 0.35);
+}
+
+/* hamburger / icon button, if you have one */
+.top-nav-icon-btn {
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 999px;
+}
+.top-nav-icon-btn:hover {
+  background: rgba(15, 23, 42, 0.25);
+}
