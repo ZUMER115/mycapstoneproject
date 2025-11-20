@@ -8,7 +8,7 @@ console.log('API:', API);
 // ---- Recommended logic helpers ----
 const RECO_TARGET        = 7;
 const RECO_UPCOMING_DAYS = 4;   // “3–4 days”
-const RECO_SHARED_DAYS   = 21;  // pinned categories window
+const RECO_SHARED_DAYS   = 21;  // pinned categories window;
 
 // Days until a local YYYY-MM-DD date
 const daysUntil = (iso) => {
@@ -256,8 +256,8 @@ const UpcomingLoadChart = ({ items, weeks = 8 }) => {
     <div style={{ display: 'grid', gap: 10 }}>
       {data.map((d, i) => (
         <div key={i} style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr max-content', gap: 12, alignItems: 'center' }}>
-          <div style={{ fontSize: 13.5, color: '#4b5563' }}>{d.label}</div>
-          <div style={{ position: 'relative', background: '#e5e7eb', height: 12, borderRadius: 999 }}>
+          <div style={{ fontSize: 13.5, color: '#cbd5f5' }}>{d.label}</div>
+          <div style={{ position: 'relative', background: '#111827', height: 12, borderRadius: 999 }}>
             <div
               title={`${d.count} deadline${d.count === 1 ? '' : 's'}`}
               style={{
@@ -269,7 +269,7 @@ const UpcomingLoadChart = ({ items, weeks = 8 }) => {
               }}
             />
           </div>
-          <div style={{ fontSize: 13.5, color: '#374151', textAlign: 'right' }}>{d.count}</div>
+          <div style={{ fontSize: 13.5, color: '#e5e7eb', textAlign: 'right' }}>{d.count}</div>
         </div>
       ))}
     </div>
@@ -327,7 +327,6 @@ const Dashboard = () => {
   const [groupedView, setGroupedView] = useState(false);
   const [includePast, setIncludePast] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [rangeFilter, setRangeFilter] = useState('upcoming'); // 'upcoming' | 'week' | 'month' | 'all'
 
   const [miniSelectedDate, setMiniSelectedDate] = useState(null);
   const [miniSelectedItems, setMiniSelectedItems] = useState([]);
@@ -361,7 +360,7 @@ const Dashboard = () => {
 
   const keyForScraped = (item) => {
     const iso = toISODateSafe(item.date || item.dateText || item.text || item.event) || '';
-    const title = (item.event || item.title || '').toLowerCase().slice(0, 80);
+       const title = (item.event || item.title || '').toLowerCase().slice(0, 80);
     return `scr|${iso}|${title}`;
   };
   const keyForPersonal = (evt) => `me|${evt._id}`;
@@ -486,19 +485,9 @@ const Dashboard = () => {
     const iso = toISODateSafe(it.date || it.dateText || it.text || it.event);
     return iso ? new Date(iso + 'T00:00:00') : new Date('Invalid');
   };
-
-  // ---- range filter for main list / chart ----
-  const isWithinRange = (d) => {
-    const diffDays = Math.floor((startOfDay(d) - todayStart) / (24 * 60 * 60 * 1000));
-    if (rangeFilter === 'upcoming') return diffDays >= 0 && diffDays <= 28;
-    if (rangeFilter === 'week')     return diffDays >= 0 && diffDays <= 7;
-    if (rangeFilter === 'month')    return diffDays >= 0 && diffDays <= 31;
-    return true; // 'all'
-  };
-
   const allAllowedSorted = allowedFiltered
     .map(d => ({ d, t: getDate(d) }))
-    .filter(x => !isNaN(x.t) && isWithinRange(x.t))
+    .filter(x => !isNaN(x.t))
     .sort((a,b) => a.t - b.t)
     .map(x => x.d);
 
@@ -600,86 +589,101 @@ const Dashboard = () => {
   }, [includePast, groupedView, firstUpcomingIdx, filteredDeadlines]);
 
   /* ===== layout ===== */
-  const pageStyle = { padding: '1.25rem', background: '#f7f8fa', minHeight: '100vh' };
-  const gridStyle = { display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) 1fr', gap: '1.25rem', alignItems: 'start' };
-  const card      = { background: '#fff', border: '1px solid #e6e8eb', borderRadius: 12, padding: '1rem' };
-  const sectionTitle = { margin: '0 0 .5rem 0', fontSize: '1.2rem' };
-// ---- Campus contacts (left column) ----
-const CONTACTS = [
-  { name: 'Financial Aid',     phone: '425-352-5240', email: 'uwbfaid@uw.edu' },
-  { name: 'Registration',      phone: '425-352-5000', email: 'uwbreg@uw.edu' },
-  { name: 'Admissions',        phone: '425-352-5000', email: 'uwbinfo@uw.edu' },
-  { name: 'Academic Advising', phone: null,           email: 'uwbadvis@uw.edu', url: 'https://www.uwb.edu/advising/' }
-];
-
-const telHref = (s) => `tel:${String(s).replace(/[^\d+]/g, '')}`;
-const ContactsCard = () => {
-  const BTN = {
-    padding: '10px 14px',
-    border: '1px solid #d0d7e2',
-    borderRadius: 10,
-    background: '#f9fafb',
-    textDecoration: 'none',
-    fontSize: 15,
-    fontWeight: 600,
-    cursor: 'pointer'
+  const pageStyle = {
+    padding: '1.25rem',
+    minHeight: '100vh',
+    background: 'var(--page-bg)'
   };
 
-  return (
-    <div style={card}>
-      <h3 style={sectionTitle}>Campus Contacts</h3>
+  const gridStyle = {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(220px, 280px) 1fr',
+    gap: '1.25rem',
+    alignItems: 'start'
+  };
 
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 16 }}>
-        {CONTACTS.map((c, i) => (
-          <li
-            key={i}
-            style={{
-              border: '1px solid #e5e7eb',
-              borderRadius: 12,
-              padding: 16,
-              background: '#f9fafb'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-              <strong style={{ fontSize: 18 }}>{c.name}</strong>
-              {c.url && (
-                <a
-                  href={c.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ fontSize: 14, color: '#2563eb', textDecoration: 'none' }}
-                >
-                  Visit site ↗
-                </a>
-              )}
-            </div>
+  const card = {
+    background: 'var(--widget-bg)',
+    border: '1px solid rgba(148,163,184,0.4)',
+    borderRadius: 12,
+    padding: '1rem'
+  };
 
-            <div style={{ fontSize: 15, marginTop: 8, display: 'grid', gap: 6, lineHeight: 1.45 }}>
-              {c.phone && (
-                <div>
-                  <span style={{ color: '#6b7280' }}>Phone: </span>
-                  <a href={telHref(c.phone)} style={{ fontWeight: 600 }}>{c.phone}</a>
-                </div>
-              )}
-              {c.email && (
-                <div>
-                  <span style={{ color: '#6b7280' }}>Email: </span>
-                  <a href={`mailto:${c.email}`} style={{ fontWeight: 600 }}>{c.email}</a>
-                </div>
-              )}
-            </div>
+  const CONTACTS = [
+    { name: 'Financial Aid',     phone: '425-352-5240', email: 'uwbfaid@uw.edu' },
+    { name: 'Registration',      phone: '425-352-5000', email: 'uwbreg@uw.edu' },
+    { name: 'Admissions',        phone: '425-352-5000', email: 'uwbinfo@uw.edu' },
+    { name: 'Academic Advising', phone: null,           email: 'uwbadvis@uw.edu', url: 'https://www.uwb.edu/advising/' }
+  ];
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-              {c.phone && <a href={telHref(c.phone)} style={BTN}>Call</a>}
-              {c.email && <a href={`mailto:${c.email}`} style={BTN}>Email</a>}
-              {c.url   && <a href={c.url} target="_blank" rel="noreferrer" style={BTN}>Website</a>}
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-};
+  const telHref = (s) => `tel:${String(s).replace(/[^\d+]/g, '')}`;
+  const ContactsCard = () => {
+    const BTN = {
+      padding: '10px 14px',
+      border: '1px solid rgba(148,163,184,0.5)',
+      borderRadius: 10,
+      background: 'var(--widget-bg)',
+      textDecoration: 'none',
+      fontSize: 15,
+      fontWeight: 600,
+      cursor: 'pointer'
+    };
+
+    return (
+      <div style={card}>
+        <h3 style={{ margin: '0 0 .75rem 0', fontSize: '1.3rem' }}>Campus Contacts</h3>
+
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 16 }}>
+          {CONTACTS.map((c, i) => (
+            <li
+              key={i}
+              style={{
+                border: '1px solid rgba(148,163,184,0.4)',
+                borderRadius: 12,
+                padding: 16,
+                background: 'var(--widget-sub-bg)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                <strong style={{ fontSize: 19 }}>{c.name}</strong>
+                {c.url && (
+                  <a
+                    href={c.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ fontSize: 14, color: '#60a5fa', textDecoration: 'none' }}
+                  >
+                    Visit site ↗
+                  </a>
+                )}
+              </div>
+
+              <div style={{ fontSize: 16, marginTop: 8, display: 'grid', gap: 6, lineHeight: 1.45 }}>
+                {c.phone && (
+                  <div>
+                    <span style={{ color: '#9ca3af' }}>Phone: </span>
+                    <a href={telHref(c.phone)} style={{ fontWeight: 600 }}>{c.phone}</a>
+                  </div>
+                )}
+                {c.email && (
+                  <div>
+                    <span style={{ color: '#9ca3af' }}>Email: </span>
+                    <a href={`mailto:${c.email}`} style={{ fontWeight: 600 }}>{c.email}</a>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                {c.phone && <a href={telHref(c.phone)} style={BTN}>Call</a>}
+                {c.email && <a href={`mailto:${c.email}`} style={BTN}>Email</a>}
+                {c.url   && <a href={c.url} target="_blank" rel="noreferrer" style={BTN}>Website</a>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
 
   const togglePinKeyLocal = (k) => setPinnedKeys(prev => {
     const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n;
@@ -697,7 +701,6 @@ const ContactsCard = () => {
     }
   };
 
-  // replace the whole function with this payload version
   async function syncPinsToServer(email, pinsPayload) {
     if (!email) return;
     const res = await fetch(`${API}/api/pins/set`, {
@@ -713,7 +716,6 @@ const ContactsCard = () => {
     } catch {}
   }
 
-  // ----- NEW: submit handler for Add Event on Dashboard -----
   async function onSubmit(e) {
     e.preventDefault();
     if (!userEmail) return alert('Please log in first.');
@@ -758,6 +760,7 @@ const ContactsCard = () => {
     }
   }
 
+  // NOTE: now accepts onAddEvent
   const RecommendedCard = ({ items, onAddEvent }) => {
     const keyFor = (it) =>
       `scr|${getISOFromItem(it) || ''}|${(it.event || it.title || '').toLowerCase().slice(0,80)}`;
@@ -825,26 +828,18 @@ const ContactsCard = () => {
           .reco-exit  { opacity: 0; transform: translateY(-4px); }
         `}</style>
 
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap: '0.75rem' }}>
-          <div>
-            <h3 style={{ marginTop: 0, marginBottom: 2 }}>Recommended Deadlines</h3>
-            <small style={{ color:'#667' }}>
-              ≤4d → pinned categories ≤21d → ladder: Add/Drop → Financial Aid → Registration → Academic (from ≥7d out)
-            </small>
-          </div>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <h3 style={{ marginTop: 0 }}>Recommended Deadlines</h3>
           {onAddEvent && (
             <button
               type="button"
               onClick={onAddEvent}
               style={{
-                padding: '0.4rem 0.7rem',
-                border: '1px solid #6a6a6a',
-                background: '#fff',
-                borderRadius: 6,
-                cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: 600,
-                whiteSpace: 'nowrap'
+                padding:'0.35rem 0.6rem',
+                border:'1px solid #6a6a6a',
+                background:'var(--widget-bg)',
+                borderRadius:6,
+                cursor:'pointer'
               }}
               title="Add a personal event"
             >
@@ -875,7 +870,7 @@ const ContactsCard = () => {
                     className={`${cls} deadline-row ${urgencyClass(item.date)}`}
                     style={{
                       padding:'1rem 12px',
-                      borderTop:'1px solid #e5e7eb',
+                      borderTop:'1px solid #4b5563',
                       display:'flex',
                       gap:'.75rem',
                       alignItems:'center',
@@ -890,8 +885,8 @@ const ContactsCard = () => {
                             {item.event || 'Untitled'}
                           </strong>
                           <span style={{
-                            fontSize:11, color:'#4b5563', textTransform:'capitalize',
-                            border: isCanvasItem(item) ? '1px solid #8b5cf6' : '1px solid #d1d5db',
+                            fontSize:11, color:'#e5e7eb', textTransform:'capitalize',
+                            border: isCanvasItem(item) ? '1px solid #8b5cf6' : '1px solid #4b5563',
                             borderRadius:999, padding:'2px 6px'
                           }}>
                             {item.category || 'other'}
@@ -941,32 +936,26 @@ const ContactsCard = () => {
           outline: 2px solid #2563eb;
           outline-offset: 2px;
           border-radius: 4px;
-        }  .deadline-row {
-    border-radius: 8px;
-    transition: background-color .12s ease, box-shadow .12s ease;
-  }
-  /* Hover/focus + urgency tints */
-  .deadline-row{
-    --bg: transparent; --ring: transparent;
-    background: var(--bg);
-    border-left: 4px solid var(--ring);
-    border-radius: 8px;
-    transition: background-color .12s ease, box-shadow .12s ease;
-  }
-  .deadline-row:hover{
-    background: #eaf2ff;
-    box-shadow: 0 0 0 1px #dbeafe inset;
-  }
-  .deadline-row:focus-within{
-    background: #eaf2ff;
-    box-shadow: 0 0 0 2px #bfdbfe inset;
-  }
-
-  /* urgency (subtle) */
-  .deadline-row.u-1w    { --bg: rgba(239, 68,  68, .08);  --ring: #f87171; } /* ≤ 7d */
-  .deadline-row.u-2w    { --bg: rgba(245, 158, 11, .10);  --ring: #f59e0b; } /* ≤ 14d */
-  .deadline-row.u-later { --bg: rgba( 16, 185,129, .08);  --ring: #34d399; } /* > 14d */
-  .deadline-row.u-past  { --bg: rgba(107, 114,128, .06);  --ring: #9ca3af; } /* optional */
+        }  
+        .deadline-row{
+          --bg: transparent; --ring: transparent;
+          background: var(--bg);
+          border-left: 4px solid var(--ring);
+          border-radius: 8px;
+          transition: background-color .12s ease, box-shadow .12s ease;
+        }
+        .deadline-row:hover{
+          background: #1f2933;
+          box-shadow: 0 0 0 1px #4b5563 inset;
+        }
+        .deadline-row:focus-within{
+          background: #1f2933;
+          box-shadow: 0 0 0 2px #60a5fa inset;
+        }
+        .deadline-row.u-1w    { --bg: rgba(239, 68,  68, .08);  --ring: #f87171; }
+        .deadline-row.u-2w    { --bg: rgba(245, 158, 11, .10);  --ring: #f59e0b; }
+        .deadline-row.u-later { --bg: rgba( 16, 185,129, .08);  --ring: #34d399; }
+        .deadline-row.u-past  { --bg: rgba(107, 114,128, .06);  --ring: #9ca3af; }
       `}</style>
 
       <div
@@ -998,36 +987,9 @@ const ContactsCard = () => {
 
         {/* RIGHT */}
         <main style={{ display: 'grid', gap: '1rem' }}>
-
-          {/* Stats with clickable ranges */}
-          <div style={{ background: '#fff', border: '1px solid #e6e8eb', borderRadius: 12, padding: '0.75rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-              <h3 style={{ margin: 0, fontSize: '1.05rem' }}>Upcoming 4 Weeks</h3>
-              <div style={{ display: 'flex', gap: 4, fontSize: 12 }}>
-                {[
-                  { id: 'upcoming', label: 'Next 4 weeks' },
-                  { id: 'week',     label: 'Next 7 days' },
-                  { id: 'month',    label: 'Next 31 days' },
-                  { id: 'all',      label: 'All' }
-                ].map(opt => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setRangeFilter(opt.id)}
-                    style={{
-                      padding: '3px 8px',
-                      borderRadius: 999,
-                      border: rangeFilter === opt.id ? '1px solid #2563eb' : '1px solid transparent',
-                      background: rangeFilter === opt.id ? '#eff6ff' : 'transparent',
-                      color: rangeFilter === opt.id ? '#1d4ed8' : '#6b7280',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+          {/* Upcoming 4 Weeks (sharpened, using shared card style) */}
+          <div style={card}>
+            <h3 style={{ marginTop: 0 }}>Upcoming 4 Weeks</h3>
             <UpcomingLoadChart items={filteredDeadlines} weeks={4} />
           </div>
 
@@ -1041,7 +1003,7 @@ const ContactsCard = () => {
                   style={{
                     padding:'0.35rem 0.6rem',
                     border:'1px solid #6a6a6a',
-                    background:'#fff',
+                    background:'var(--widget-bg)',
                     borderRadius:6,
                     cursor:'pointer'
                   }}
@@ -1062,7 +1024,7 @@ const ContactsCard = () => {
                       key={`pin-${item._key}-${i}`}
                       className={`deadline-row ${urgencyClass(item.date)}`}
                       style={{
-                        border: '1px solid #e5e7eb',
+                        border: '1px solid #4b5563',
                         borderRadius: 8,
                         padding: '10px 12px',
                         display: 'flex',
@@ -1079,8 +1041,8 @@ const ContactsCard = () => {
                             <span style={{
                               marginLeft:8,
                               fontSize:11,
-                              color:'#4b5563',
-                              border:'1px solid #d1d5db',
+                              color:'#e5e7eb',
+                              border:'1px solid #4b5563',
                               borderRadius:999,
                               padding:'2px 6px'
                             }}>
@@ -1092,7 +1054,7 @@ const ContactsCard = () => {
                           <div
                             style={{
                               fontSize: 12,
-                              color: '#6b7280',
+                              color: '#9ca3af',
                               textTransform: 'capitalize'
                             }}
                           >
@@ -1111,8 +1073,8 @@ const ContactsCard = () => {
                               padding: '0.25rem 0.5rem',
                               borderRadius: 6,
                               cursor: 'pointer',
-                              background:'#fee2e2',
-                              color:'#991b1b'
+                              background:'#7f1d1d',
+                              color:'#fee2e2'
                             }}
                             title="Delete personal event"
                           >
@@ -1134,7 +1096,7 @@ const ContactsCard = () => {
                   );
                 })}
               </ul>
-              {loadingEvents && <div style={{ marginTop:8, fontSize:12, color:'#6b7280' }}>Loading personal events…</div>}
+              {loadingEvents && <div style={{ marginTop:8, fontSize:12, color:'#9ca3af' }}>Loading personal events…</div>}
             </div>
           )}
 
@@ -1151,10 +1113,10 @@ const ContactsCard = () => {
                   <div
                     key={cat}
                     style={{
-                      border: '1px solid #e5e7eb',
+                      border: '1px solid rgba(148,163,184,0.4)',
                       borderRadius: 8,
                       padding: '12px',
-                      background: '#f9fafb'
+                      background: 'var(--widget-bg)'
                     }}
                   >
                     <div style={{
@@ -1166,7 +1128,7 @@ const ContactsCard = () => {
                       <h4 style={{ margin: 0, fontSize: '1.05rem', textTransform: 'capitalize' }}>
                         {cat.replace('-', ' ')}
                       </h4>
-                      <span style={{ fontSize: 12, color: '#6b7280' }}>{grouped[cat].length}</span>
+                      <span style={{ fontSize: 12, color: '#9ca3af' }}>{grouped[cat].length}</span>
                     </div>
                     <ul style={{
                       listStyle: 'none',
@@ -1188,7 +1150,7 @@ const ContactsCard = () => {
                             className={`deadline-row ${urgencyClass(item.date)}`}
                             style={{
                               padding: '8px 0',
-                              borderTop: '1px solid #e5e7eb',
+                              borderTop: '1px solid #4b5563',
                               display: 'flex',
                               gap: 8,
                               alignItems: 'center',
@@ -1207,7 +1169,7 @@ const ContactsCard = () => {
                               </span>
                               <div style={{
                                 fontSize: 12,
-                                color: '#6b7280',
+                                color: '#9ca3af',
                                 textTransform: 'capitalize'
                               }}>
                                 {item.category || 'other'}
@@ -1234,8 +1196,10 @@ const ContactsCard = () => {
               </div>
             </div>
           ) : (
-            // Recommended card now owns the "+ Add Event" button, so the full card can sit higher
-            <RecommendedCard items={recommended} onAddEvent={() => setAddOpen(true)} />
+            <RecommendedCard
+              items={recommended}
+              onAddEvent={() => setAddOpen(true)}
+            />
           )}
 
           {/* (Your mini-calendar + Add Event modal can remain as-is below) */}
