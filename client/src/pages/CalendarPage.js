@@ -245,10 +245,9 @@ export default function CalendarPage() {
     }
   }, []);
 
-  // scraped deadlines (UW Bothell calendar)
-  // scraped deadlines (UW calendars, filtered by campus preference on the backend)
+  // scraped deadlines + Canvas (user-specific via JWT)
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || '';
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
     fetch(`${API}/api/deadlines`, { headers })
@@ -257,7 +256,6 @@ export default function CalendarPage() {
       .catch(() => setDeadlines([]))
       .finally(() => setLoading(false));
   }, []);
-
 
   // personal + Canvas (.ics) events (both live in /api/events; Canvas ones should have category 'canvas')
   useEffect(() => {
@@ -277,7 +275,7 @@ export default function CalendarPage() {
     }
   }, [deadlines, pinsStamp]);
 
-  // build scraped events; RANGE -> create events on start & last day only
+  // build scraped + canvas-from-deadlines events; RANGE -> create events on start & last day only
   const { events: scrapedEvents, lookup } = useMemo(() => {
     const lookupMap = new Map();
     const out = [];
@@ -285,6 +283,7 @@ export default function CalendarPage() {
     (deadlines || []).forEach((item, idx) => {
       const title = item.event || item.title || String(item.date || 'Event');
       const category = item.category || 'other';
+      const source = item.source || 'uw'; // 'uw' or 'canvas'
       const parsed = parseDateRange(
         item.date || item.dateText || item.text || title
       );
@@ -292,6 +291,7 @@ export default function CalendarPage() {
 
       const pinned = pinnedSet.has(keyForScraped(item));
       const displayDate = displayRange(parsed.start, parsed.end);
+      const isCanvas = source === 'canvas';
 
       const base = {
         title,
@@ -299,14 +299,17 @@ export default function CalendarPage() {
         dateText: displayDate,
         _start: parsed.start,
         _end: parsed.end,
-        pinned
+        pinned,
+        source,
+        url: item.url || null
       };
 
       const lastInclusive = new Date(parsed.end);
       lastInclusive.setDate(lastInclusive.getDate() - 1);
 
       const pushEv = (d, suffix) => {
-        const id = `scr-${idx}-${suffix}`;
+        const idPrefix = isCanvas ? 'canvas' : 'scr';
+        const id = `${idPrefix}-${idx}-${suffix}`;
         lookupMap.set(id, base);
         out.push({
           id,
@@ -316,7 +319,20 @@ export default function CalendarPage() {
             new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
           ),
           allDay: true,
-          extendedProps: { source: 'scraped', pinned }
+          // Canvas deadlines from /api/deadlines get the purple styling
+          ...(isCanvas
+            ? {
+                backgroundColor: '#8b5cf6',
+                borderColor: '#7c3aed',
+                textColor: '#ffffff'
+              }
+            : {}),
+          extendedProps: {
+            source: isCanvas ? 'canvas' : 'scraped',
+            pinned,
+            category,
+            url: item.url || null
+          }
         });
       };
 
@@ -331,7 +347,7 @@ export default function CalendarPage() {
     return { events: out, lookup: lookupMap };
   }, [deadlines, pinnedSet]);
 
-  // personal + Canvas events
+  // personal + Canvas events from /api/events
   const personalEvents = useMemo(() => {
     return (userEvents || []).map((u, i) => {
       const id = `me-${u._id || i}`;
@@ -358,7 +374,8 @@ export default function CalendarPage() {
           source: isCanvas ? 'canvas' : 'personal',
           mongoId: u._id || null,
           category: cat,
-          notes: u.notes || ''
+          notes: u.notes || '',
+          url: u.url || null
         }
       };
     });
@@ -658,7 +675,8 @@ export default function CalendarPage() {
           eventClick={(info) => {
             const src = info.event.extendedProps?.source;
             if (src === 'personal' || src === 'canvas') {
-              const { category, notes, mongoId } = info.event.extendedProps || {};
+              const { category, notes, mongoId, url } =
+                info.event.extendedProps || {};
               const start = new Date(info.event.start);
               const end = new Date(info.event.end);
               setSelected({
@@ -669,7 +687,8 @@ export default function CalendarPage() {
                 dateText: displayRange(start, end),
                 _start: start,
                 _end: end,
-                notes: notes || ''
+                notes: notes || '',
+                url: url || null
               });
             } else {
               const details = lookup.get(info.event.id);
@@ -780,8 +799,7 @@ export default function CalendarPage() {
             ) : null}
 
             <div className="event-actions">
-              {selected.kind === 'personal' &&
-              selected.mongoId ? (
+              {selected.kind === 'personal' && selected.mongoId ? (
                 <button
                   className="btn-lg btn-danger"
                   onClick={async () => {
@@ -791,9 +809,7 @@ export default function CalendarPage() {
                         method: 'DELETE'
                       });
                       const next = await fetch(
-                        `${API}/api/events?email=${encodeURIComponent(
-                          email
-                        )}`
+                        `${API}/api/events?email=${encodeURIComponent(email)}`
                       ).then((x) => x.json());
                       setUserEvents(Array.isArray(next) ? next : []);
                       setSelected(null);
