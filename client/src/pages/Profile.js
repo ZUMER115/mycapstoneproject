@@ -274,48 +274,38 @@ export default function Profile() {
     setIcsStatus('');
   };
 
-  const handleIcsUpload = async () => {
-    if (!icsFile) {
-      setIcsStatus('Please choose a .ics file first.');
-      return;
+const handleIcsUpload = async () => {
+  try {
+    const token = localStorage.getItem('token');
+
+    const res = await fetch(`${API}/api/canvas/import-ics`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ icsText }),
+    });
+
+    if (res.status === 401) {
+      throw new Error('Unauthorized – please log in again.');
     }
-    if (!email) {
-      setIcsStatus('Please log in first.');
-      return;
+
+    if (!res.ok) {
+      // Try to read server message for debugging
+      const text = await res.text();
+      console.error('Canvas import error:', res.status, text);
+      throw new Error('Failed to import Canvas calendar.');
     }
 
-    try {
-      setIcsLoading(true);
-      setIcsStatus('');
-
-      const text = await icsFile.text();
-      const token = getToken();
-
-      const res = await fetch(`${API_BASE}/api/canvas/import-ics`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({ icsText: text })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to import Canvas calendar.');
-      }
-
-      const count = data.imported ?? 0;
-      setIcsStatus(`Imported ${count} Canvas event${count === 1 ? '' : 's'}.`);
-      setIcsFile(null);
-    } catch (err) {
-      console.error(err);
-      setIcsStatus(err.message || 'Something went wrong importing Canvas calendar.');
-    } finally {
-      setIcsLoading(false);
-    }
-  };
+    const data = await res.json();
+    console.log('Canvas import success:', data);
+    alert(`Imported ${data.imported ?? 0} Canvas events.`);
+  } catch (err) {
+    console.error(err);
+    alert(err.message || 'Failed to import Canvas calendar.');
+  }
+};
 
   if (loading) {
     return (
