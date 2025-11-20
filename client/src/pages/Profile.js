@@ -5,8 +5,6 @@ import { useEffect, useState } from 'react';
 const API_BASE =
   process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
 
-console.log('API_BASE at runtime:', API_BASE);
-
 export default function Profile() {
   const [email, setEmail] = useState('');
   const [leadTimeDays, setLeadTimeDays] = useState(3);
@@ -329,25 +327,121 @@ export default function Profile() {
     );
   }
 
-  const card = {
-    background: 'var(--widget-bg)',
-    border: '1px solid var(--border)',
-    borderRadius: 12,
-    padding: '1rem'
-  };
+  const card = 'profile-card';
+  const labelClass = 'profile-label';
+  const inputClass = 'profile-input';
+  const primaryBtn = 'profile-btn primary';
+  const secondaryBtn = 'profile-btn secondary';
 
   return (
     <div style={{ padding: '1rem', maxWidth: 880, margin: '0 auto' }}>
-      <h2 style={{ marginTop: 0 }}>Profile</h2>
+      {/* local styles just for this page */}
+      <style>{`
+        :root {
+          --text-main: #111827;
+          --text-muted: #4b5563;
+          --input-border: #d1d5db;
+          --input-bg: #ffffff;
+          --btn-primary-bg: #2563eb;
+          --btn-primary-bg-hover: #1d4ed8;
+          --btn-primary-text: #ffffff;
+          --btn-secondary-bg: #ffffff;
+          --btn-secondary-border: #d1d5db;
+          --btn-secondary-text: #111827;
+        }
+        [data-theme="dark"] {
+          --text-main: #e5e7eb;
+          --text-muted: #9ca3af;
+          --input-border: #4b5563;
+          --input-bg: #020617;
+          --btn-primary-bg: #2563eb;
+          --btn-primary-bg-hover: #1d4ed8;
+          --btn-primary-text: #f9fafb;
+          --btn-secondary-bg: #020617;
+          --btn-secondary-border: #4b5563;
+          --btn-secondary-text: #e5e7eb;
+        }
+        .profile-card {
+          background: var(--widget-bg, #020617);
+          border: 1px solid var(--border, rgba(148,163,184,0.5));
+          border-radius: 12px;
+          padding: 1rem;
+        }
+        .profile-label {
+          display: grid;
+          gap: 4px;
+          font-size: 14px;
+          color: var(--text-main);
+        }
+        .profile-input {
+          padding: 8px 10px;
+          border-radius: 8px;
+          border: 1px solid var(--input-border);
+          background: var(--input-bg);
+          color: var(--text-main);
+        }
+        .profile-input::placeholder {
+          color: var(--text-muted);
+        }
+        .profile-btn {
+          padding: 0.6rem 1rem;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+        }
+        .profile-btn.primary {
+          border: none;
+          background: var(--btn-primary-bg);
+          color: var(--btn-primary-text);
+        }
+        .profile-btn.primary:hover:not(:disabled) {
+          background: var(--btn-primary-bg-hover);
+        }
+        .profile-btn.secondary {
+          border: 1px solid var(--btn-secondary-border);
+          background: var(--btn-secondary-bg);
+          color: var(--btn-secondary-text);
+        }
+        .profile-btn:disabled {
+          opacity: 0.7;
+          cursor: default;
+        }
+        .profile-section-title {
+          margin-top: 0;
+          margin-bottom: 4px;
+          font-size: 1.05rem;
+          color: var(--text-main);
+        }
+        .profile-section-sub {
+          margin-top: 0;
+          margin-bottom: 12px;
+          font-size: 13px;
+          color: var(--text-muted);
+        }
+      `}</style>
+
+      <header style={{ marginBottom: 16 }}>
+        <h2 style={{ margin: 0, color: 'var(--text-main)' }}>Profile</h2>
+        <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--text-muted)' }}>
+          Manage your account, notifications, appearance, and Canvas import.
+        </p>
+      </header>
 
       <div style={{ display: 'grid', gap: '1rem' }}>
         {/* Account */}
-        <section style={card}>
-          <h3 style={{ marginTop: 0, marginBottom: 8 }}>Account</h3>
-          <div style={{ fontSize: 14, color: '#374151', marginBottom: 12 }}>
-            <div>
-              <strong>Email:</strong> {email || '—'}
-            </div>
+        <section className={card}>
+          <h3 className="profile-section-title">Account</h3>
+          <p className="profile-section-sub">
+            Update your primary email and password associated with your Sparely account.
+          </p>
+
+          <div style={{ fontSize: 14, marginBottom: 12, color: 'var(--text-main)' }}>
+            <strong>Email:</strong> {email || '—'}
           </div>
 
           {/* Update email */}
@@ -355,40 +449,32 @@ export default function Profile() {
             onSubmit={handleEmailUpdate}
             style={{ display: 'grid', gap: 8, maxWidth: 420, marginTop: 8 }}
           >
-            <label style={{ display: 'grid', gap: 4, fontSize: 14 }}>
+            <label className={labelClass}>
               <span>New email</span>
               <input
                 type="email"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 placeholder="you@example.com"
-                style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db' }}
+                className={inputClass}
               />
             </label>
 
-            <label style={{ display: 'grid', gap: 4, fontSize: 14 }}>
+            <label className={labelClass}>
               <span>Current password (for confirmation)</span>
               <input
                 type="password"
                 value={currentPasswordForEmail}
                 onChange={(e) => setCurrentPasswordForEmail(e.target.value)}
-                style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db' }}
+                className={inputClass}
               />
             </label>
 
             <button
               type="submit"
               disabled={updatingEmail}
-              style={{
-                marginTop: 4,
-                padding: '0.6rem 1rem',
-                border: 'none',
-                borderRadius: 8,
-                background: '#2563eb',
-                color: '#fff',
-                cursor: 'pointer',
-                width: 'fit-content'
-              }}
+              className={primaryBtn}
+              style={{ marginTop: 4, width: 'fit-content' }}
             >
               {updatingEmail ? 'Updating email…' : 'Update email'}
             </button>
@@ -399,51 +485,45 @@ export default function Profile() {
             onSubmit={handlePasswordChange}
             style={{ display: 'grid', gap: 8, maxWidth: 420, marginTop: 20 }}
           >
-            <h4 style={{ margin: '8px 0', fontSize: 15 }}>Change password</h4>
+            <h4 style={{ margin: '4px 0', fontSize: 15, color: 'var(--text-main)' }}>
+              Change password
+            </h4>
 
-            <label style={{ display: 'grid', gap: 4, fontSize: 14 }}>
+            <label className={labelClass}>
               <span>Current password</span>
               <input
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db' }}
+                className={inputClass}
               />
             </label>
 
-            <label style={{ display: 'grid', gap: 4, fontSize: 14 }}>
+            <label className={labelClass}>
               <span>New password</span>
               <input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db' }}
+                className={inputClass}
               />
             </label>
 
-            <label style={{ display: 'grid', gap: 4, fontSize: 14 }}>
+            <label className={labelClass}>
               <span>Confirm new password</span>
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db' }}
+                className={inputClass}
               />
             </label>
 
             <button
               type="submit"
               disabled={updatingPassword}
-              style={{
-                marginTop: 4,
-                padding: '0.6rem 1rem',
-                border: 'none',
-                borderRadius: 8,
-                background: '#2563eb',
-                color: '#fff',
-                cursor: 'pointer',
-                width: 'fit-content'
-              }}
+              className={primaryBtn}
+              style={{ marginTop: 4, width: 'fit-content' }}
             >
               {updatingPassword ? 'Updating password…' : 'Change password'}
             </button>
@@ -451,19 +531,18 @@ export default function Profile() {
         </section>
 
         {/* Notifications */}
-        <section style={card}>
-          <h3 style={{ marginTop: 0 }}>Notifications</h3>
-          <p style={{ marginTop: 4, color: '#555', fontSize: 14 }}>
-            Choose how many days <em>before a deadline</em> you want reminders.
+        <section className={card}>
+          <h3 className="profile-section-title">Notifications</h3>
+          <p className="profile-section-sub">
+            Choose how many days <em>before a deadline</em> you want reminder emails.
           </p>
 
           <div style={{ display: 'grid', gap: 8, maxWidth: 360 }}>
             <label
+              className={labelClass}
               style={{
-                display: 'grid',
                 gridTemplateColumns: '1fr auto',
-                alignItems: 'center',
-                gap: 8
+                alignItems: 'center'
               }}
             >
               <span>Lead time (days):</span>
@@ -476,11 +555,12 @@ export default function Profile() {
                 onChange={(e) =>
                   setLeadTimeDays(clampLead(parseInt(e.target.value, 10)))
                 }
-                style={{ width: 100, padding: '8px 10px' }}
+                className={inputClass}
+                style={{ width: 100 }}
               />
             </label>
 
-            <small style={{ color: '#6b7280' }}>
+            <small style={{ color: 'var(--text-muted)' }}>
               You’ll be alerted <strong>{leadTimeDays}</strong>{' '}
               {leadTimeDays === 1 ? 'day' : 'days'} before each upcoming deadline.
             </small>
@@ -488,8 +568,12 @@ export default function Profile() {
         </section>
 
         {/* Appearance */}
-        <section style={card}>
-          <h3 style={{ marginTop: 0 }}>Appearance</h3>
+        <section className={card}>
+          <h3 className="profile-section-title">Appearance</h3>
+          <p className="profile-section-sub">
+            Switch between light and dark themes. Your choice is remembered across sessions.
+          </p>
+
           <div
             style={{
               display: 'flex',
@@ -498,7 +582,7 @@ export default function Profile() {
               flexWrap: 'wrap'
             }}
           >
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-main)' }}>
               <input
                 type="radio"
                 name="theme"
@@ -511,7 +595,7 @@ export default function Profile() {
               />
               Light
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-main)' }}>
               <input
                 type="radio"
                 name="theme"
@@ -534,28 +618,22 @@ export default function Profile() {
                   return nxt;
                 });
               }}
-              style={{
-                marginLeft: 'auto',
-                padding: '8px 12px',
-                border: '1px solid #d1d5db',
-                borderRadius: 8,
-                background: '#fff',
-                cursor: 'pointer'
-              }}
+              className={secondaryBtn}
+              style={{ marginLeft: 'auto' }}
             >
-              Preview Toggle
+              Preview toggle
             </button>
           </div>
-          <small style={{ color: '#6b7280', display: 'block', marginTop: 6 }}>
+          <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: 6 }}>
             The theme applies instantly for preview and is remembered. Click Save to update the
             server copy.
           </small>
         </section>
 
         {/* Canvas Calendar Import */}
-        <section style={card}>
-          <h3 style={{ marginTop: 0 }}>Canvas Calendar Import</h3>
-          <p style={{ marginTop: 4, color: '#555', fontSize: 14 }}>
+        <section className={card}>
+          <h3 className="profile-section-title">Canvas Calendar Import</h3>
+          <p className="profile-section-sub">
             Export your Canvas calendar as a <code>.ics</code> file and upload it here to add your
             assignments into Sparely.
           </p>
@@ -572,33 +650,27 @@ export default function Profile() {
               type="file"
               accept=".ics,text/calendar"
               onChange={handleIcsFileChange}
+              style={{ fontSize: 14, color: 'var(--text-main)' }}
             />
             <button
               type="button"
               onClick={handleIcsUpload}
               disabled={icsLoading || !icsFile}
-              style={{
-                padding: '0.6rem 1rem',
-                border: 'none',
-                borderRadius: 8,
-                background: '#2563eb',
-                color: '#fff',
-                cursor: icsLoading || !icsFile ? 'default' : 'pointer'
-              }}
+              className={primaryBtn}
             >
               {icsLoading ? 'Importing…' : 'Import .ics'}
             </button>
           </div>
 
           {icsStatus && (
-            <p style={{ marginTop: 8, fontSize: 14, color: '#374151' }}>{icsStatus}</p>
+            <p style={{ marginTop: 8, fontSize: 14, color: 'var(--text-main)' }}>{icsStatus}</p>
           )}
         </section>
 
         {/* Actions / Status */}
         <section
+          className={card}
           style={{
-            ...card,
             display: 'flex',
             alignItems: 'center',
             gap: 12,
@@ -608,16 +680,9 @@ export default function Profile() {
           <button
             onClick={save}
             disabled={saving}
-            style={{
-              padding: '0.6rem 1rem',
-              border: 'none',
-              borderRadius: 8,
-              background: '#2563eb',
-              color: '#fff',
-              cursor: 'pointer'
-            }}
+            className={primaryBtn}
           >
-            {saving ? 'Saving…' : 'Save Preferences'}
+            {saving ? 'Saving…' : 'Save preferences'}
           </button>
 
           <button
@@ -628,13 +693,7 @@ export default function Profile() {
               applyTheme('light');
               setMsg({ type: 'ok', text: 'Reset locally (remember to Save).' });
             }}
-            style={{
-              padding: '0.6rem 1rem',
-              border: '1px solid #d1d5db',
-              borderRadius: 8,
-              background: '#fff',
-              cursor: 'pointer'
-            }}
+            className={secondaryBtn}
           >
             Reset to defaults
           </button>
@@ -642,7 +701,7 @@ export default function Profile() {
           {msg && (
             <span
               style={{
-                marginLeft: 8,
+                marginLeft: 4,
                 fontSize: 14,
                 color: msg.type === 'ok' ? '#065f46' : '#991b1b',
                 background: msg.type === 'ok' ? '#d1fae5' : '#fee2e2',
