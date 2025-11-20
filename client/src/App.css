@@ -179,4 +179,66 @@
   font-size: 12px;
   color: var(--muted);
 }
+/* === Sparely Dashboard theme enhancements === */
 
+/* Darker text in light mode */
+:root {
+  --text: #111827;
+  --muted: #4b5563;
+  --chip-text: #1f2937;
+}
+
+/* Contact section readability */
+.contact-info {
+  color: var(--text);
+}
+.contact-info a {
+  color: var(--primary-600);
+  font-weight: 600;
+}
+
+/* Deadline chips */
+.deadline-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: var(--chip-bg);
+}
+[data-theme="dark"] .deadline-chip {
+  color: var(--chip-text);
+  background: #1f2937;
+  border-color: #4b5563;
+}
+
+/* Pin button */
+.pin-btn {
+  background: #f3f4f6;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.pin-btn:hover { background: #e5e7eb; }
+
+[data-theme="dark"] .pin-btn {
+  background: #111827;
+  color: #ffffff;
+  border-color: #4b5563;
+}
+
+/* Light blue hover */
+.deadline-row:hover {
+  background: #e0f2fe !important;
+}
+[data-theme="dark"] .deadline-row:hover {
+  background: #1f2937 !important;
+}
+
+/* Upcoming 4 weeks later bar segment */
+.week-bar-remaining {
+  background: #dbeafe;
+}
