@@ -256,7 +256,9 @@ const UpcomingLoadChart = ({ items, weeks = 8 }) => {
     <div style={{ display: 'grid', gap: 10 }}>
       {data.map((d, i) => (
         <div key={i} style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr max-content', gap: 12, alignItems: 'center' }}>
-          <div style={{ fontSize: 13.5, color: '#cbd5f5' }}>{d.label}</div>
+          <div className="week-label" style={{ fontSize: 13.5 }}>
+  {d.label}
+</div>
           <div
   className="week-bar-remaining"
   style={{ position: 'relative', height: 12, borderRadius: 999 }}

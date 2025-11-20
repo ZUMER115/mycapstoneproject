@@ -198,41 +198,46 @@
   font-weight: 600;
 }
 
-/* Deadline chips */
+/* Deadline category chips */
 .deadline-chip {
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  color: var(--text);
-  background: var(--chip-bg);
+  border: 1px solid #cbd5e1;
+  background: #e5edff;   /* light bluish background */
+  color: #111827;        /* darker text in light mode */
 }
 
+/* Keep dark mode look similar to what you liked before */
 [data-theme="dark"] .deadline-chip {
-  color: var(--chip-text);
-  background: #1f2937;
   border-color: #4b5563;
+  background: #111827;
+  color: #e5e7eb;
 }
 
-/* Pin button */
+
+/* Pin button – light gray in light mode */
 .pin-btn {
   background: #f3f4f6;
-  color: #1f2937;
+  color: #111827;
   border: 1px solid #d1d5db;
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 600;
+  cursor: pointer;
 }
 .pin-btn:hover {
   background: #e5e7eb;
 }
 
+/* Dark, high-contrast pin in dark mode */
 [data-theme="dark"] .pin-btn {
-  background: #111827;
+  background: #000000;
   color: #ffffff;
   border-color: #4b5563;
 }
+
 
 /* Light blue hover for deadlines in light mode */
 .deadline-row:hover {
@@ -245,4 +250,12 @@
 /* Upcoming 4 weeks track (remaining portion) */
 .week-bar-remaining {
   background: #dbeafe;
+}
+/* Upcoming 4 Weeks date labels */
+.week-label {
+  color: #1f2937; /* dark text in light mode */
+}
+
+[data-theme="dark"] .week-label {
+  color: #f9fafb; /* near-white in dark mode */
 }
