@@ -36,18 +36,23 @@
     transform: rotate(360deg);
   }
 }
+
 /* ---- Theme tokens ---- */
 :root {
   --bg: #f6f7fb;
   --card: #ffffff;
-  --text: #1c1f24;
-  --muted: #6b7280;
+
+  /* darker text for light mode */
+  --text: #111827;
+  --muted: #4b5563;
+
   --border: #e5e7eb;
   --primary: #6d28d9;      /* purple */
   --primary-600: #5b21b6;
   --chip-bg: #eef2ff;
   --chip-on: #4f46e5;
   --chip-off: #9ca3af;
+  --chip-text: #1f2937;
 }
 
 [data-theme="dark"] {
@@ -61,6 +66,7 @@
   --chip-bg: #1f2937;
   --chip-on: #a78bfa;
   --chip-off: #6b7280;
+  --chip-text: #e5e7eb;
 }
 
 /* ---- Page layout ---- */
@@ -135,6 +141,7 @@
   font-weight: 600;
 }
 .btn:hover { border-color: var(--primary); }
+
 .btn-primary {
   background: var(--primary);
   border-color: var(--primary);
@@ -179,14 +186,8 @@
   font-size: 12px;
   color: var(--muted);
 }
-/* === Sparely Dashboard theme enhancements === */
 
-/* Darker text in light mode */
-:root {
-  --text: #111827;
-  --muted: #4b5563;
-  --chip-text: #1f2937;
-}
+/* === Sparely Dashboard theme enhancements === */
 
 /* Contact section readability */
 .contact-info {
@@ -206,6 +207,7 @@
   color: var(--text);
   background: var(--chip-bg);
 }
+
 [data-theme="dark"] .deadline-chip {
   color: var(--chip-text);
   background: #1f2937;
@@ -222,7 +224,9 @@
   font-size: 13px;
   font-weight: 600;
 }
-.pin-btn:hover { background: #e5e7eb; }
+.pin-btn:hover {
+  background: #e5e7eb;
+}
 
 [data-theme="dark"] .pin-btn {
   background: #111827;
@@ -230,7 +234,7 @@
   border-color: #4b5563;
 }
 
-/* Light blue hover */
+/* Light blue hover for deadlines in light mode */
 .deadline-row:hover {
   background: #e0f2fe !important;
 }
@@ -238,7 +242,7 @@
   background: #1f2937 !important;
 }
 
-/* Upcoming 4 weeks later bar segment */
+/* Upcoming 4 weeks track (remaining portion) */
 .week-bar-remaining {
   background: #dbeafe;
 }
