@@ -9,7 +9,7 @@ const UserPreference = require('../models/userPreferenceModel');
 const router = express.Router();
 
 // JWT secret (same you use in auth)
-const JWT_SECRET = process.env.JWT_SECRET || 'change_me_in_env';
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
 /* ---------- helpers ---------- */
 function extractSessions(s) {
