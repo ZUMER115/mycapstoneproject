@@ -123,10 +123,22 @@ const isoDate = (d) => {
 };
 
 // Parse many formats -> start/end (end exclusive)
+// Parse many formats -> start/end (end exclusive)
 function parseDateRange(text) {
   if (!text) return null;
-  const yMatch = text.match(/(\d{4})(?!.*\d{4})/);
-  const cleaned = yMatch ? text.slice(0, yMatch.index + 4) : text;
+
+  const s = String(text).trim();
+
+  // handle ISO YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const d = new Date(s + 'T00:00:00');
+    const end = new Date(d);
+    end.setDate(end.getDate() + 1);
+    return { start: d, end };
+  }
+
+  const yMatch = s.match(/(\d{4})(?!.*\d{4})/);
+  const cleaned = yMatch ? s.slice(0, yMatch.index + 4) : s;
   const t = cleaned.replace(/\s+/g, ' ').trim();
 
   // "Oct 2, 2024"
@@ -135,9 +147,9 @@ function parseDateRange(text) {
     const [, M, d, y] = m;
     const mi = monthIdx(M);
     if (mi != null) {
-      const s = new Date(+y, mi, +d);
-      const e = new Date(+y, mi, +d + 1);
-      return { start: s, end: e };
+      const start = new Date(+y, mi, +d);
+      const end = new Date(+y, mi, +d + 1);
+      return { start, end };
     }
   }
 
@@ -147,9 +159,9 @@ function parseDateRange(text) {
     const [, M, d1, d2, y] = m;
     const mi = monthIdx(M);
     if (mi != null) {
-      const s = new Date(+y, mi, +d1);
-      const e = new Date(+y, mi, +d2 + 1);
-      return { start: s, end: e };
+      const start = new Date(+y, mi, +d1);
+      const end = new Date(+y, mi, +d2 + 1);
+      return { start, end };
     }
   }
 
@@ -162,20 +174,21 @@ function parseDateRange(text) {
     const mi1 = monthIdx(M1);
     const mi2 = monthIdx(M2);
     if (mi1 != null && mi2 != null) {
-      const s = new Date(+y, mi1, +d1);
-      const e = new Date(+y, mi2, +d2 + 1);
-      return { start: s, end: e };
+      const start = new Date(+y, mi1, +d1);
+      const end = new Date(+y, mi2, +d2 + 1);
+      return { start, end };
     }
   }
 
   const tryDate = new Date(t);
   if (!isNaN(tryDate.getTime())) {
-    const e = new Date(tryDate);
-    e.setDate(e.getDate() + 1);
-    return { start: tryDate, end: e };
+    const end = new Date(tryDate);
+    end.setDate(end.getDate() + 1);
+    return { start: tryDate, end };
   }
   return null;
 }
+
 
 const fmtLong = new Intl.DateTimeFormat('en-US', {
   month: 'long',
