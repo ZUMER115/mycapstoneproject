@@ -160,17 +160,22 @@ setCampusPref(storedCampus); // 👈 NEW
     setUpdatingEmail(true);
     try {
       const token = getToken();
-      const res = await fetch(`${API_BASE}/api/auth/email`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({
-          currentPassword: currentPasswordForEmail,
-          newEmail: newEmail.trim()
-        })
-      });
+const res = await fetch(`${API_BASE}/api/auth/email`, {
+  method: 'PUT',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: token ? `Bearer ${token}` : ''
+  },
+  body: JSON.stringify({
+    // send *both* the current email and the new email,
+    // plus the current password
+    email,                   // current email (if backend expects it)
+    currentEmail: email,     // alt name, in case route uses this
+    currentPassword: currentPasswordForEmail,
+    newEmail: newEmail.trim()
+  })
+});
+
 
       const text = await res.text();
       let data;
