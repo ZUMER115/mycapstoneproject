@@ -579,6 +579,7 @@ const res = await fetch(`${API_BASE}/api/auth/email`, {
           </div>
         </section>
         {/* Campus Preference */}
+{/* Campus Preference */}
 <section className={card}>
   <h3 className="profile-section-title">Campus</h3>
   <p className="profile-section-sub">
@@ -621,11 +622,22 @@ const res = await fetch(`${API_BASE}/api/auth/email`, {
       <input
         type="radio"
         name="campus"
-        value="both"
-        checked={campusPref === 'both'}
+        value="uwt"
+        checked={campusPref === 'uwt'}
         onChange={(e) => setCampusPref(e.target.value)}
       />
-      <span>Both Bothell and Seattle</span>
+      <span>UW Tacoma only</span>
+    </label>
+
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <input
+        type="radio"
+        name="campus"
+        value="all"
+        checked={campusPref === 'all'}
+        onChange={(e) => setCampusPref(e.target.value)}
+      />
+      <span>All campuses</span>
     </label>
 
     <small style={{ color: 'var(--text-muted)' }}>
@@ -634,6 +646,7 @@ const res = await fetch(`${API_BASE}/api/auth/email`, {
     </small>
   </div>
 </section>
+
 
         {/* Appearance */}
         <section className={card}>

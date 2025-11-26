@@ -28,6 +28,7 @@ router.get('/preferences/:email', async (req, res) => {
  * Upsert preferences.
  * body: { email, lead_time_days?, bio?, notes?, theme? }
  */
+// src/routes/preferences.js
 router.post('/preferences', async (req, res) => {
   const { email, lead_time_days, bio, notes, theme, campus_preference } = req.body || {};
   if (!email) return res.status(400).json({ message: 'email required' });
@@ -38,10 +39,11 @@ router.post('/preferences', async (req, res) => {
   if (notes !== undefined) update.notes = String(notes);
   if (theme !== undefined) update.theme = theme === 'dark' ? 'dark' : 'light';
 
-  // 🔥 NEW: campus preference
+  // 🔥 campus preference
   if (campus_preference !== undefined) {
     const c = String(campus_preference);
-    update.campus_preference = ['uwb', 'uws', 'both'].includes(c) ? c : 'uwb';
+    const allowed = ['uwb', 'uws', 'uwt', 'all'];   // 👈 updated list
+    update.campus_preference = allowed.includes(c) ? c : 'uwb';
   }
 
   const pref = await UserPreference.findOneAndUpdate(
@@ -52,5 +54,6 @@ router.post('/preferences', async (req, res) => {
 
   res.json(pref);
 });
+
 
 module.exports = router;
