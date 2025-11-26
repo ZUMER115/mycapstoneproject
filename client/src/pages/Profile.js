@@ -167,14 +167,11 @@ const res = await fetch(`${API_BASE}/api/auth/email`, {
     Authorization: token ? `Bearer ${token}` : ''
   },
   body: JSON.stringify({
-    // send *both* the current email and the new email,
-    // plus the current password
-    email,                   // current email (if backend expects it)
-    currentEmail: email,     // alt name, in case route uses this
-    currentPassword: currentPasswordForEmail,
-    newEmail: newEmail.trim()
+    newEmail: newEmail.trim(),
+    password: currentPasswordForEmail   // 👈 key name changed
   })
 });
+
 
 
       const text = await res.text();
