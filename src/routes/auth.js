@@ -1,56 +1,27 @@
 // src/routes/auth.js
 const express = require('express');
 const router = express.Router();
-const {
-  register,
-  login,
-  verifyEmail,
-  updateEmail,
-  changePassword
-} = require('../controllers/authController');
 
-const bcrypt = require('bcryptjs');
-const { query } = require('../config/db');
 const authMiddleware = require('../middleware/authMiddleware');
+const authController = require('../controllers/authController');
 
-// Regular routes
-router.post('/register', register);
-router.post('/login', login);
-router.get('/verify', verifyEmail);
+// REGISTER
+router.post('/register', authController.register);
 
-// NEW: protected profile actions
-router.put('/email', authMiddleware, updateEmail);
-router.put('/password', authMiddleware, changePassword);
+// LOGIN
+router.post('/login', authController.login);
 
-/* ---------- DEMO LOGIN (temporary) ---------- */
-router.post('/demo-login', async (_req, res) => {
-  try {
-    const demoEmail = 'demo@sparely.app';
-    const demoPass = 'demo123';
+// VERIFY EMAIL (GET /api/auth/verify?token=...)
+router.get('/verify', authController.verifyEmail);
 
-    // check if demo exists
-    const existing = await query('SELECT * FROM users WHERE email=$1', [demoEmail]);
+// UPDATE EMAIL (PUT /api/auth/email)
+router.put('/email', authMiddleware, authController.updateEmail);
 
-    if (existing.rows.length === 0) {
-      // create verified demo account
-      const hash = await bcrypt.hash(demoPass, 10);
-      await query(
-        'INSERT INTO users (email, password_hash, is_verified) VALUES ($1, $2, TRUE)',
-        [demoEmail, hash]
-      );
-      console.log('✅ Demo user created in Postgres');
-    }
-
-    // respond with demo credentials (no email verification needed)
-    res.json({
-      email: demoEmail,
-      password: demoPass,
-      message: 'Demo account ready. You can log in using these credentials.'
-    });
-  } catch (err) {
-    console.error('❌ Demo login setup error:', err.message);
-    res.status(500).json({ message: 'Demo setup failed', error: err.message });
-  }
-});
+// CHANGE PASSWORD (POST /api/auth/change-password)
+router.post(
+  '/change-password',
+  authMiddleware,
+  authController.changePassword
+);
 
 module.exports = router;
