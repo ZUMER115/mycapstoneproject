@@ -5,6 +5,7 @@ const dayjs = require('dayjs');
 
 const BOTHELL_BASE = 'https://www.uwb.edu/academic-calendar';
 const SEATTLE_BASE = 'https://www.washington.edu/students/reg';
+const TACOMA_BASE = 'https://www.tacoma.uw.edu/registrar/academic-calendar';
 
 /* ========= STATIC list (Bothell, keeps previous year/known pages alive) ========= */
 const STATIC_URLS_BOTHELL = [
@@ -19,6 +20,11 @@ const STATIC_URLS_BOTHELL = [
 /* ========= UW Seattle static URLs (one page per AY) ========= */
 const STATIC_URLS_SEATTLE = [
   `${SEATTLE_BASE}/2526cal.html`,   // 2025–2026
+];
+
+/* ========= UW Tacoma static URLs (single consolidated page) ========= */
+const STATIC_URLS_TACOMA = [
+  TACOMA_BASE,                      // 2025–26 + 2024–25 on same page
 ];
 
 /* ========= Bothell slugs for auto-discovery ========= */
@@ -121,10 +127,18 @@ function categorize(eventText, headingText) {
 
   if (/(registration|register|enroll)/.test(combined)) return 'registration';
   if (/(add|drop|withdrawal|change.*course)/.test(combined)) return 'add/drop';
-  if (/(financial aid|payment|tuition|fee|u[-\s]?pass|upass)/.test(combined)) return 'financial-aid';
-  if (/(grades? due|grades? available|gpa|s\/ns|pass\/fail|incomplete|final grades|first day of instruction|last day of instruction|start of instruction|classes begin|classes start|classes end|end of term)/.test(combined)) {
+  if (/(financial aid|payment|tuition|fee|u[-\s]?pass|upass)/.test(combined))
+    return 'financial-aid';
+
+  // Academic / instruction / exams / breaks / grades
+  if (
+    /(grades? due|grades? available|gpa|s\/ns|pass\/fail|incomplete|final grades|first day of instruction|last day of instruction|start of instruction|classes begin|classes start|classes end|end of term|instruction begins|final examination|final exam|commencement|quarter break)/.test(
+      combined
+    )
+  ) {
     return 'academic';
   }
+
   return 'other';
 }
 
@@ -144,7 +158,7 @@ function currentAY() {
   const now = new Date();
   const y = now.getFullYear();
   const m = now.getMonth(); // 0..11
-  return (m >= 6) ? [y, y + 1] : [y - 1, y];
+  return m >= 6 ? [y, y + 1] : [y - 1, y];
 }
 function candidatesFor(slug, y1, y2) {
   return [
@@ -174,7 +188,7 @@ function slugFromUrl(url) {
 
 /* ---------------- core scrape ---------------- */
 /**
- * campus: 'uwb' | 'uws'
+ * campus: 'uwb' | 'uws' | 'uwt'
  * opts: { skipHolidaysTable?: boolean }
  */
 async function scrapePage(url, out, campus, opts = {}) {
@@ -201,8 +215,11 @@ async function scrapePage(url, out, campus, opts = {}) {
       if (prev.length) tableHeading = prev.text().trim();
       const headingLower = tableHeading.toLowerCase();
 
-      // Skip *holiday* table on the Seattle page
-      if (skipHolidaysTable && headingLower.includes('holiday')) {
+      // Skip *holiday* / *religious accommodations* tables when requested
+      if (
+        skipHolidaysTable &&
+        (headingLower.includes('holiday') || headingLower.includes('religious'))
+      ) {
         return;
       }
 
@@ -247,7 +264,7 @@ async function scrapePage(url, out, campus, opts = {}) {
         }
 
         // Schema B: [date][title] (Bothell)
-        // Schema C: [title][date1][date2]...[dateN] (Seattle)
+        // Schema C: [title][date1][date2]...[dateN] (Seattle/Tacoma)
         if (!ths.length && tds.length >= 2) {
           const firstTextRaw = $(tds.get(0)).text().trim();
           const secondTextRaw = $(tds.get(1)).text().trim();
@@ -341,7 +358,13 @@ async function fetchAllDeadlines() {
     await scrapePage(url, deadlines, 'uws', { skipHolidaysTable: true });
   }
 
-  // 4) Sort and return lean objects
+  // 4) Tacoma: single consolidated page (skip holidays & religious accommodations)
+  for (const url of STATIC_URLS_TACOMA) {
+    // eslint-disable-next-line no-await-in-loop
+    await scrapePage(url, deadlines, 'uwt', { skipHolidaysTable: true });
+  }
+
+  // 5) Sort and return lean objects
   deadlines.sort((a, b) => a.dateObj - b.dateObj);
   return deadlines.map(({ event, date, category, campus }) => ({
     event,
