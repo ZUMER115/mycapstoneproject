@@ -128,11 +128,28 @@ function smoothScrollTo(container, target, duration = 600) {
   requestAnimationFrame(step);
 }
 
+// category grouping config (presentation only)
+const CATEGORY_GROUPS_CONFIG = [
+  {
+    name: 'Academic',
+    matches: (c) => c === 'academic'
+  },
+  {
+    name: 'Registration',
+    matches: (c) => c === 'registration' || c === 'add/drop'
+  },
+  {
+    name: 'Money & Billing',
+    matches: (c) => c === 'financial-aid'
+  }
+  // everything else → "Other"
+];
+
 export default function SearchPage() {
   const [deadlines, setDeadlines] = useState([]);
   const [categoryFilters, setCategoryFilters] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
-  const [includePast, setIncludePast] = useState(false); // you said: don't show past when unchecked
+  const [includePast, setIncludePast] = useState(false);
   const [canvasFilter, setCanvasFilter] = useState(true); // global Canvas toggle
   const listRef = useRef(null);
   const [toastMsg, setToastMsg] = useState('');
@@ -140,6 +157,8 @@ export default function SearchPage() {
   const [showSkipButton, setShowSkipButton] = useState(false);
 
   const [userEmail, setUserEmail] = useState('');
+  // 🔹 local campus filter for this page only
+  const [campusSearchFilter, setCampusSearchFilter] = useState('all'); // 'all' | 'uwb' | 'uws' | 'uwt'
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -166,17 +185,51 @@ export default function SearchPage() {
       .catch(() => {});
   }, []);
 
-  // hydrate category filters from data
+  // hydrate category filters from data (excluding Canvas-like categories)
   useEffect(() => {
     if (!deadlines.length) return;
     setCategoryFilters(prev => {
-      const present = new Set(deadlines.map(d => d.category || 'other'));
+      const present = new Set(
+        deadlines
+          .map(d => d.category || 'other')
+          .filter(c => !/canvas/i.test(String(c))) // leave Canvas to the separate toggle
+      );
+
       const next = { ...prev };
       present.forEach(c => { if (!(c in next)) next[c] = true; });
-      Object.keys(next).forEach(k => { if (!present.has(k)) delete next[k]; });
+      Object.keys(next).forEach(k => {
+        if (!present.has(k)) delete next[k];
+      });
       return next;
     });
   }, [deadlines]);
+
+  // derive grouped categories for UI
+  const groupedCategories = useMemo(() => {
+    const groups = {};
+    const cats = Object.keys(categoryFilters);
+
+    for (const cat of cats) {
+      const lower = String(cat || '').toLowerCase();
+      if (/canvas/i.test(lower)) continue; // skip canvas at category level
+
+      let groupName = 'Other';
+      for (const def of CATEGORY_GROUPS_CONFIG) {
+        if (def.matches(lower)) {
+          groupName = def.name;
+          break;
+        }
+      }
+      if (!groups[groupName]) groups[groupName] = [];
+      groups[groupName].push(cat);
+    }
+
+    Object.keys(groups).forEach(name => {
+      groups[name].sort();
+    });
+
+    return groups;
+  }, [categoryFilters]);
 
   // pinned
   const [pinnedKeys, setPinnedKeys] = useState(() => {
@@ -209,7 +262,7 @@ export default function SearchPage() {
   const anyCategoryOn = Object.values(categoryFilters).some(Boolean);
   const anyCanvasOn = canvasFilter;
 
-  // 1) category + search + canvas filter
+  // 1) category + campus + search + canvas filter
   const allowedFiltered = deadlines.filter((item) => {
     const category = item.category || 'other';
     const allowed = categoryFilters[category] ?? true;
@@ -219,11 +272,26 @@ export default function SearchPage() {
       item.source === 'canvas' ||
       (/canvas/i.test(category));
 
+    const campus = item.campus || null;
+
+    // campus filter is *local to search*, Canvas events are always allowed past campus filter
+    if (campusSearchFilter !== 'all') {
+      if (campus && campusSearchFilter !== campus) {
+        // UW deadline for a different campus → filtered out
+        return false;
+      }
+      // if no campus (Canvas), fall through and let Canvas toggle handle it
+    }
+
     // if nothing is checked at all => show nothing
     if (!anyCategoryOn && !anyCanvasOn) return false;
 
-    if (!allowed && !isCanvas) return false; // UW / non-canvas categories
-    if (!canvasFilter && isCanvas) return false;
+    // UW / non-canvas categories
+    if (!isCanvas && !allowed) return false;
+
+    // Canvas global toggle
+    if (isCanvas && !canvasFilter) return false;
+
     if (!matches) return false;
 
     return true;
@@ -238,7 +306,7 @@ export default function SearchPage() {
       .map(x => x.d);
   }, [allowedFiltered]);
 
-  // 3) upcoming vs all toggle (you *don't* want past when unchecked)
+  // 3) upcoming vs all toggle
   const upcomingOnly = allAllowedSorted.filter(it => getDate(it) >= todayStart);
   const visibleList = includePast ? allAllowedSorted : upcomingOnly;
 
@@ -274,15 +342,14 @@ export default function SearchPage() {
     }
   };
 
-  // 👉 Always jump to "today" whenever visible list changes (filters/search updates)
+  // 👉 Always jump to "today" whenever visible list changes
   useEffect(() => {
     if (sortedDeadlines.length > 0) {
-      // instant jump feels best when filters change
       scrollToFirstUpcoming(true);
     }
   }, [sortedDeadlines]);
 
-  // track when first upcoming is off-screen → show big blue "Skip to today"
+  // track when first upcoming is off-screen → show "Back to today"
   useEffect(() => {
     const listEl = listRef.current;
     if (!listEl) return;
@@ -307,7 +374,7 @@ export default function SearchPage() {
       setShowSkipButton(!isVisible);
     };
 
-    handleScroll(); // initial
+    handleScroll();
     listEl.addEventListener('scroll', handleScroll);
     return () => listEl.removeEventListener('scroll', handleScroll);
   }, [firstUpcomingIdx, sortedDeadlines]);
@@ -328,11 +395,19 @@ export default function SearchPage() {
     setSearchTerm('');
     setIncludePast(false);
     setCanvasFilter(true);
+    setCampusSearchFilter('all');
     setCategoryFilters(prev => {
       const next = { ...prev };
       Object.keys(next).forEach(k => (next[k] = true));
       return next;
     });
+  };
+
+  const campusLabel = (value) => {
+    if (value === 'uwb') return 'UW Bothell';
+    if (value === 'uws') return 'UW Seattle';
+    if (value === 'uwt') return 'UW Tacoma';
+    return 'All campuses';
   };
 
   return (
@@ -355,11 +430,11 @@ export default function SearchPage() {
           transition: background-color .12s ease, box-shadow .12s ease;
         }
         .deadline-row:hover {
-          background: #1f2933;
-          box-shadow: 0 0 0 1px #4b5563 inset;
+          background: #e0f2fe; /* light blue hover */
+          box-shadow: 0 0 0 1px #93c5fd inset;
         }
         .deadline-row:focus-within {
-          background: #1f2933;
+          background: #e0f2fe;
           box-shadow: 0 0 0 2px #60a5fa inset;
         }
 
@@ -419,54 +494,101 @@ export default function SearchPage() {
           />
         </div>
 
+        {/* Campus filter (local to search page) */}
+        <div>
+          <label style={{ display:'block', fontWeight:700, marginBottom:6 }}>Campus (search only)</label>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
+            {['all', 'uwb', 'uws', 'uwt'].map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setCampusSearchFilter(value)}
+                style={{
+                  borderRadius: 999,
+                  padding: '4px 12px',
+                  border: campusSearchFilter === value
+                    ? '1px solid #2563eb'
+                    : '1px solid #e5e7eb',
+                  background: campusSearchFilter === value ? '#dbeafe' : '#0b1120',
+                  color: campusSearchFilter === value ? '#111827' : '#e5e7eb',
+                  fontSize: 13,
+                  cursor: 'pointer'
+                }}
+              >
+                {campusLabel(value)}
+              </button>
+            ))}
+          </div>
+          <small style={{ color:'#9ca3af', display:'block', marginTop:4 }}>
+            This only affects what you see on this page. Your profile campus preference stays the same.
+          </small>
+        </div>
+
         {/* Category filters */}
         <div>
           <label style={{ display:'block', fontWeight:700, marginBottom:6 }}>Categories</label>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
-            {Object.keys(categoryFilters).length === 0 && (
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            {Object.keys(groupedCategories).length === 0 && (
               <span style={{ color:'#667' }}>No categories yet.</span>
             )}
-            {Object.keys(categoryFilters).sort().map((cat) => (
+
+            {Object.entries(groupedCategories).map(([groupName, cats]) => (
+              <div key={groupName}>
+                <div style={{ fontSize:12, fontWeight:600, textTransform:'uppercase', color:'#9ca3af', marginBottom:4 }}>
+                  {groupName}
+                </div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
+                  {cats.map((cat) => (
+                    <label
+                      key={cat}
+                      style={{
+                        display:'inline-flex',
+                        alignItems:'center',
+                        gap:6,
+                        border:'1px solid #e6e8eb',
+                        borderRadius:999,
+                        padding:'4px 10px',
+                        background: '#020617'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!categoryFilters[cat]}
+                        onChange={(e) =>
+                          setCategoryFilters(prev => ({ ...prev, [cat]: e.target.checked }))
+                        }
+                      />
+                      <span style={{ textTransform:'capitalize' }}>{cat}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {/* extra Canvas global checkbox */}
+            <div style={{ marginTop:8 }}>
+              <div style={{ fontSize:12, fontWeight:600, textTransform:'uppercase', color:'#9ca3af', marginBottom:4 }}>
+                Canvas
+              </div>
               <label
-                key={cat}
                 style={{
                   display:'inline-flex',
                   alignItems:'center',
                   gap:6,
                   border:'1px solid #e6e8eb',
                   borderRadius:999,
-                  padding:'4px 10px'
+                  padding:'4px 10px',
+                  background: '#020617'
                 }}
               >
                 <input
                   type="checkbox"
-                  checked={!!categoryFilters[cat]}
-                  onChange={(e) =>
-                    setCategoryFilters(prev => ({ ...prev, [cat]: e.target.checked }))
-                  }
+                  checked={canvasFilter}
+                  onChange={(e) => setCanvasFilter(e.target.checked)}
                 />
-                <span style={{ textTransform:'capitalize' }}>{cat}</span>
+                <span>Show Canvas events</span>
               </label>
-            ))}
-
-            {/* extra Canvas global checkbox */}
-            <label
-              style={{
-                display:'inline-flex',
-                alignItems:'center',
-                gap:6,
-                border:'1px solid #e6e8eb',
-                borderRadius:999,
-                padding:'4px 10px'
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={canvasFilter}
-                onChange={(e) => setCanvasFilter(e.target.checked)}
-              />
-              <span>Canvas</span>
-            </label>
+            </div>
           </div>
         </div>
 
@@ -500,7 +622,7 @@ export default function SearchPage() {
                 borderRadius: 6,
                 cursor: 'pointer'
               }}
-              title="Reset search & categories; show upcoming only"
+              title="Reset search & filters; show upcoming only"
             >
               Show all (clear)
             </button>
@@ -543,7 +665,7 @@ export default function SearchPage() {
       >
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <h3 style={{ marginTop: 0 }}>
-            {includePast ? 'All Deadlines' : 'Upcoming Application Deadlines'}
+            {includePast ? 'All Deadlines' : 'Upcoming Deadlines'}
           </h3>
         </div>
 
