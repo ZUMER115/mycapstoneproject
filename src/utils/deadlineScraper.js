@@ -394,6 +394,11 @@ const Deadline = require('../models/Deadlines.js');
  * otherwise scrapes and caches new ones.
  */
 async function getOrPopulateDeadlines() {
+
+  if (process.env.FORCE_DEADLINE_REFRESH === 'true') {
+  console.log('🔁 FORCE_DEADLINE_REFRESH enabled — clearing deadlines and rescraping...');
+  await Deadline.deleteMany({});
+}
   const existing = await Deadline.find({}).lean();
 
   const hasRequiredFields =
