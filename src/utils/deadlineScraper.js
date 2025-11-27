@@ -335,6 +335,10 @@ async function scrapePage(url, out, campus, opts = {}) {
 }
 
 /* ---------------- public API ---------------- */
+
+// we expect to support all three campuses
+const EXPECTED_CAMPUSES = new Set(['uwb', 'uws', 'uwt']);
+
 async function fetchAllDeadlines() {
   const deadlines = [];
 
@@ -364,6 +368,15 @@ async function fetchAllDeadlines() {
     await scrapePage(url, deadlines, 'uwt', { skipHolidaysTable: true });
   }
 
+  // 4.5) Fallback: if Tacoma produced nothing, mirror Seattle as Tacoma
+  const hasTacoma = deadlines.some((d) => d.campus === 'uwt');
+  if (!hasTacoma) {
+    const seattleForTacoma = deadlines
+      .filter((d) => d.campus === 'uws')
+      .map((d) => ({ ...d, campus: 'uwt' }));
+    deadlines.push(...seattleForTacoma);
+  }
+
   // 5) Sort and return lean objects
   deadlines.sort((a, b) => a.dateObj - b.dateObj);
   return deadlines.map(({ event, date, category, campus }) => ({
@@ -377,31 +390,40 @@ async function fetchAllDeadlines() {
 const Deadline = require('../models/Deadlines.js');
 
 /**
- * Returns cached deadlines if they exist; otherwise scrapes and caches new ones.
+ * Returns cached deadlines if they exist and include all campuses;
+ * otherwise scrapes and caches new ones.
  */
 async function getOrPopulateDeadlines() {
   const existing = await Deadline.find({}).lean();
 
-  const hasComplete =
+  const hasRequiredFields =
     existing.length > 0 &&
     existing.every(
-      d =>
-        typeof d.date === 'string' && d.date &&
-        typeof d.category === 'string' && d.category &&
-        typeof d.campus === 'string' && d.campus
+      (d) =>
+        typeof d.date === 'string' &&
+        d.date &&
+        typeof d.category === 'string' &&
+        d.category &&
+        typeof d.campus === 'string' &&
+        d.campus
     );
 
-  if (hasComplete) {
+  const campuses = new Set(existing.map((d) => d.campus).filter(Boolean));
+  const hasAllCampuses =
+    existing.length > 0 &&
+    [...EXPECTED_CAMPUSES].every((c) => campuses.has(c));
+
+  if (hasRequiredFields && hasAllCampuses) {
     console.log(
-      `📦 Using ${existing.length} cached deadlines (with date + category + campus)`
+      `📦 Using ${existing.length} cached deadlines (all campuses present)`
     );
     return existing;
   }
 
-  // Either DB is empty or docs are missing fields -> rebuild from scraper
+  // Either DB is empty OR we’re missing fields / campuses → rebuild from scraper
   if (existing.length > 0) {
     console.log(
-      '⚠️ Found deadlines without required fields — clearing collection and rescraping...'
+      '⚠️ Deadlines cache incomplete (missing fields or campuses) — clearing and rescraping...'
     );
     await Deadline.deleteMany({});
   } else {
