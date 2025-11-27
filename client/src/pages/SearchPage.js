@@ -4,9 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-/* ===== helpers copied from Dashboard ===== */
+/* ===== helpers ===== */
 const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 
 // format a Date -> YYYY-MM-DD (no timezone shift)
 const toYMD = (dateObj) => {
@@ -111,7 +110,7 @@ async function syncPinsToServer(email, pinsPayload) {
   }
 }
 
-// smooth scroll with ease-out (fast then slow)
+// smooth scroll
 function smoothScrollTo(container, target, duration = 600) {
   const start = container.scrollTop;
   const change = target - start;
@@ -128,36 +127,23 @@ function smoothScrollTo(container, target, duration = 600) {
   requestAnimationFrame(step);
 }
 
-// category grouping config (presentation only)
-const CATEGORY_GROUPS_CONFIG = [
-  {
-    name: 'Academic',
-    matches: (c) => c === 'academic'
-  },
-  {
-    name: 'Registration',
-    matches: (c) => c === 'registration' || c === 'add/drop'
-  },
-  {
-    name: 'Money & Billing',
-    matches: (c) => c === 'financial-aid'
-  }
-  // everything else → "Other"
-];
+// canonical categories
+const CANONICAL_CATS = ['registration', 'academic', 'financial-aid', 'add/drop', 'other'];
 
 export default function SearchPage() {
   const [deadlines, setDeadlines] = useState([]);
   const [categoryFilters, setCategoryFilters] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
   const [includePast, setIncludePast] = useState(false);
-  const [canvasFilter, setCanvasFilter] = useState(true); // global Canvas toggle
+  const [canvasFilter, setCanvasFilter] = useState(true); // master Canvas toggle
+  const [canvasCourseFilters, setCanvasCourseFilters] = useState({});
   const listRef = useRef(null);
   const [toastMsg, setToastMsg] = useState('');
   const [toastSeq, setToastSeq] = useState(0);
   const [showSkipButton, setShowSkipButton] = useState(false);
 
   const [userEmail, setUserEmail] = useState('');
-  // 🔹 local campus filter for this page only
+  // local campus filter for this page only
   const [campusSearchFilter, setCampusSearchFilter] = useState('all'); // 'all' | 'uwb' | 'uws' | 'uwt'
 
   useEffect(() => {
@@ -185,51 +171,64 @@ export default function SearchPage() {
       .catch(() => {});
   }, []);
 
-  // hydrate category filters from data (excluding Canvas-like categories)
+  // hydrate category filters from data (non-canvas)
   useEffect(() => {
     if (!deadlines.length) return;
     setCategoryFilters(prev => {
+      const next = { ...prev };
+      // ensure canonical categories exist
+      CANONICAL_CATS.forEach(c => {
+        if (!(c in next)) next[c] = true;
+      });
+
+      // clean up any categories that no longer appear
       const present = new Set(
         deadlines
           .map(d => d.category || 'other')
-          .filter(c => !/canvas/i.test(String(c))) // leave Canvas to the separate toggle
+          .filter(c => !/canvas/i.test(String(c)))
       );
-
-      const next = { ...prev };
-      present.forEach(c => { if (!(c in next)) next[c] = true; });
       Object.keys(next).forEach(k => {
-        if (!present.has(k)) delete next[k];
+        if (!CANONICAL_CATS.includes(k) && !present.has(k)) {
+          delete next[k];
+        }
+      });
+
+      return next;
+    });
+  }, [deadlines]);
+
+  // derive per-course Canvas filters
+  useEffect(() => {
+    const courses = new Set();
+
+    deadlines.forEach(d => {
+      const cat = String(d.category || '');
+      const isCanvas = d.source === 'canvas' || /canvas/i.test(cat);
+      if (!isCanvas) return;
+
+      let label = 'General';
+      const m = cat.match(/^Canvas\s*\((.+)\)$/i);
+      if (m) label = m[1].trim();
+      courses.add(label);
+    });
+
+    setCanvasCourseFilters(prev => {
+      const next = { ...prev };
+      courses.forEach(c => {
+        if (!(c in next)) next[c] = true;
+      });
+      Object.keys(next).forEach(k => {
+        if (!courses.has(k)) delete next[k];
       });
       return next;
     });
   }, [deadlines]);
 
-  // derive grouped categories for UI
-  const groupedCategories = useMemo(() => {
-    const groups = {};
-    const cats = Object.keys(categoryFilters);
-
-    for (const cat of cats) {
-      const lower = String(cat || '').toLowerCase();
-      if (/canvas/i.test(lower)) continue; // skip canvas at category level
-
-      let groupName = 'Other';
-      for (const def of CATEGORY_GROUPS_CONFIG) {
-        if (def.matches(lower)) {
-          groupName = def.name;
-          break;
-        }
-      }
-      if (!groups[groupName]) groups[groupName] = [];
-      groups[groupName].push(cat);
-    }
-
-    Object.keys(groups).forEach(name => {
-      groups[name].sort();
-    });
-
-    return groups;
-  }, [categoryFilters]);
+  // grouped canvas course list
+  const canvasCourseList = useMemo(
+    () => Object.keys(canvasCourseFilters).sort(),
+    [canvasCourseFilters]
+  );
 
   // pinned
   const [pinnedKeys, setPinnedKeys] = useState(() => {
@@ -264,8 +263,7 @@ export default function SearchPage() {
 
   // 1) category + campus + search + canvas filter
   const allowedFiltered = deadlines.filter((item) => {
-    const category = item.category || 'other';
-    const allowed = categoryFilters[category] ?? true;
+    const category = (item.category || 'other').toLowerCase();
     const matches = !searchTerm || (item.event || '').toLowerCase().includes(searchTerm.toLowerCase());
 
     const isCanvas =
@@ -274,24 +272,37 @@ export default function SearchPage() {
 
     const campus = item.campus || null;
 
-    // campus filter is *local to search*, Canvas events are always allowed past campus filter
-    if (campusSearchFilter !== 'all') {
+    // campus filter (UW only)
+    if (campusSearchFilter !== 'all' && !isCanvas) {
       if (campus && campusSearchFilter !== campus) {
-        // UW deadline for a different campus → filtered out
         return false;
       }
-      // if no campus (Canvas), fall through and let Canvas toggle handle it
     }
 
     // if nothing is checked at all => show nothing
     if (!anyCategoryOn && !anyCanvasOn) return false;
 
-    // UW / non-canvas categories
-    if (!isCanvas && !allowed) return false;
+    // Canvas handling
+    if (isCanvas) {
+      if (!canvasFilter) return false;
 
-    // Canvas global toggle
-    if (isCanvas && !canvasFilter) return false;
+      let label = 'General';
+      const m = String(item.category || '').match(/^Canvas\s*\((.+)\)$/i);
+      if (m) label = m[1].trim();
 
+      if (canvasCourseList.length) {
+        const allowedCourse = canvasCourseFilters[label] ?? true;
+        if (!allowedCourse) return false;
+      }
+
+      if (!matches) return false;
+      return true;
+    }
+
+    // UW category handling
+    const key = CANONICAL_CATS.includes(category) ? category : 'other';
+    const allowed = categoryFilters[key] ?? true;
+    if (!allowed) return false;
     if (!matches) return false;
 
     return true;
@@ -310,17 +321,16 @@ export default function SearchPage() {
   const upcomingOnly = allAllowedSorted.filter(it => getDate(it) >= todayStart);
   const visibleList = includePast ? allAllowedSorted : upcomingOnly;
 
-  // first upcoming index (within visibleList / allAllowedSorted)
+  // first upcoming index
   const firstUpcomingIdx = useMemo(() => {
     const base = visibleList === upcomingOnly ? visibleList : allAllowedSorted;
     const idx = base.findIndex(it => getDate(it) >= todayStart);
-    if (includePast) return idx;
     return idx;
   }, [visibleList, includePast, allAllowedSorted, todayStart, upcomingOnly]);
 
   const sortedDeadlines = useMemo(() => visibleList, [visibleList]);
 
-  // scroll to today's first upcoming item
+  // scroll to first upcoming
   const scrollToFirstUpcoming = (instant = false) => {
     if (firstUpcomingIdx == null || firstUpcomingIdx < 0) return;
     const listEl = listRef.current;
@@ -342,14 +352,14 @@ export default function SearchPage() {
     }
   };
 
-  // 👉 Always jump to "today" whenever visible list changes
+  // jump to today on list change
   useEffect(() => {
     if (sortedDeadlines.length > 0) {
       scrollToFirstUpcoming(true);
     }
   }, [sortedDeadlines]);
 
-  // track when first upcoming is off-screen → show "Back to today"
+  // show/hide "Back to today"
   useEffect(() => {
     const listEl = listRef.current;
     if (!listEl) return;
@@ -396,7 +406,14 @@ export default function SearchPage() {
     setIncludePast(false);
     setCanvasFilter(true);
     setCampusSearchFilter('all');
+
     setCategoryFilters(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => (next[k] = true));
+      return next;
+    });
+
+    setCanvasCourseFilters(prev => {
       const next = { ...prev };
       Object.keys(next).forEach(k => (next[k] = true));
       return next;
@@ -414,8 +431,6 @@ export default function SearchPage() {
     <div
       style={{
         padding: '1.25rem',
-        display: 'grid',
-        gap: '1rem',
         minHeight: '100vh',
         background: 'var(--page-bg)'
       }}
@@ -461,6 +476,19 @@ export default function SearchPage() {
           82%  { opacity: 1; transform: translate(-50%, 0); }
           100% { opacity: 0; transform: translate(-50%, -8px); }
         }
+
+        .search-layout {
+          display: grid;
+          grid-template-columns: minmax(230px, 290px) minmax(0, 1fr);
+          gap: 1rem;
+          align-items: flex-start;
+        }
+
+        @media (max-width: 900px) {
+          .search-layout {
+            grid-template-columns: minmax(0, 1fr);
+          }
+        }
       `}</style>
 
       {toastMsg && (
@@ -469,116 +497,106 @@ export default function SearchPage() {
         </div>
       )}
 
-      <h1 style={{ margin: 0 }}>Search Deadlines</h1>
+      <h1 style={{ margin: '0 0 0.75rem 0' }}>Search Deadlines</h1>
 
-      {/* Controls */}
-      <div
-        style={{
-          background: 'var(--widget-bg)',
-          border: '1px solid rgba(148,163,184,0.4)',
-          borderRadius: 12,
-          padding: '0.75rem',
-          display: 'grid',
-          gap: 12
-        }}
-      >
-        {/* Search */}
-        <div>
-          <label style={{ display:'block', fontWeight:700, marginBottom:6 }}>Search</label>
-          <input
-            type="text"
-            placeholder="Search by keyword…"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ padding:'0.5rem', width:'min(520px, 100%)' }}
-          />
-        </div>
-
-        {/* Campus filter (local to search page) */}
-        <div>
-          <label style={{ display:'block', fontWeight:700, marginBottom:6 }}>Campus (search only)</label>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
-            {['all', 'uwb', 'uws', 'uwt'].map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setCampusSearchFilter(value)}
-                style={{
-                  borderRadius: 999,
-                  padding: '4px 12px',
-                  border: campusSearchFilter === value
-                    ? '1px solid #2563eb'
-                    : '1px solid #e5e7eb',
-                  background: campusSearchFilter === value ? '#dbeafe' : '#0b1120',
-                  color: campusSearchFilter === value ? '#111827' : '#e5e7eb',
-                  fontSize: 13,
-                  cursor: 'pointer'
-                }}
-              >
-                {campusLabel(value)}
-              </button>
-            ))}
+      <div className="search-layout">
+        {/* LEFT SIDEBAR: filters */}
+        <aside
+          style={{
+            background: 'var(--widget-bg)',
+            border: '1px solid rgba(148,163,184,0.4)',
+            borderRadius: 12,
+            padding: '0.75rem',
+            display: 'grid',
+            gap: 14
+          }}
+        >
+          {/* Search */}
+          <div>
+            <label style={{ display:'block', fontWeight:700, marginBottom:6 }}>Search</label>
+            <input
+              type="text"
+              placeholder="Search by keyword…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                padding:'0.45rem 0.55rem',
+                width:'100%',
+                borderRadius:6,
+                border:'1px solid #d1d5db',
+                background:'#ffffff',
+                color:'#111827'
+              }}
+            />
           </div>
-          <small style={{ color:'#9ca3af', display:'block', marginTop:4 }}>
-            This only affects what you see on this page. Your profile campus preference stays the same.
-          </small>
-        </div>
 
-        {/* Category filters */}
-        <div>
-          <label style={{ display:'block', fontWeight:700, marginBottom:6 }}>Categories</label>
-          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-            {Object.keys(groupedCategories).length === 0 && (
-              <span style={{ color:'#667' }}>No categories yet.</span>
-            )}
+          {/* Categories */}
+          <div>
+            <div style={{ fontWeight:700, marginBottom:4 }}>Categories</div>
+            <div style={{ display:'grid', gap:6 }}>
+              {CANONICAL_CATS.map((catKey) => {
+                const label =
+                  catKey === 'financial-aid' ? 'Financial-Aid'
+                  : catKey === 'add/drop' ? 'Add/Drop'
+                  : catKey.charAt(0).toUpperCase() + catKey.slice(1);
 
-            {Object.entries(groupedCategories).map(([groupName, cats]) => (
-              <div key={groupName}>
-                <div style={{ fontSize:12, fontWeight:600, textTransform:'uppercase', color:'#9ca3af', marginBottom:4 }}>
-                  {groupName}
-                </div>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
-                  {cats.map((cat) => (
-                    <label
-                      key={cat}
-                      style={{
-                        display:'inline-flex',
-                        alignItems:'center',
-                        gap:6,
-                        border:'1px solid #e6e8eb',
-                        borderRadius:999,
-                        padding:'4px 10px',
-                        background: '#020617'
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={!!categoryFilters[cat]}
-                        onChange={(e) =>
-                          setCategoryFilters(prev => ({ ...prev, [cat]: e.target.checked }))
-                        }
-                      />
-                      <span style={{ textTransform:'capitalize' }}>{cat}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ))}
+                // hide "Other" if there are no "other" events at all
+                if (catKey === 'other') {
+                  const hasOther = deadlines.some(d => {
+                    const c = (d.category || 'other').toLowerCase();
+                    return !CANONICAL_CATS.includes(c) || c === 'other';
+                  });
+                  if (!hasOther) return null;
+                }
 
-            {/* extra Canvas global checkbox */}
-            <div style={{ marginTop:8 }}>
-              <div style={{ fontSize:12, fontWeight:600, textTransform:'uppercase', color:'#9ca3af', marginBottom:4 }}>
-                Canvas
-              </div>
+                return (
+                  <label
+                    key={catKey}
+                    style={{
+                      display:'inline-flex',
+                      alignItems:'center',
+                      gap:8,
+                      border:'1px solid #d1d5db',
+                      borderRadius:999,
+                      padding:'4px 10px',
+                      background:'#ffffff',
+                      color:'#111827',
+                      fontSize:13
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={categoryFilters[catKey] ?? true}
+                      onChange={(e) =>
+                        setCategoryFilters(prev => ({ ...prev, [catKey]: e.target.checked }))
+                      }
+                    />
+                    <span>{label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Canvas */}
+          <div>
+            <div style={{ fontWeight:700, marginBottom:4 }}>Canvas</div>
+            <div
+              style={{
+                display:'grid',
+                gap:6,
+                padding:'6px 8px',
+                borderRadius:8,
+                border:'1px solid #e5e7eb',
+                background:'#f9fafb'
+              }}
+            >
               <label
                 style={{
                   display:'inline-flex',
                   alignItems:'center',
-                  gap:6,
-                  border:'1px solid #e6e8eb',
-                  borderRadius:999,
-                  padding:'4px 10px',
-                  background: '#020617'
+                  gap:8,
+                  fontSize:13
                 }}
               >
                 <input
@@ -588,157 +606,223 @@ export default function SearchPage() {
                 />
                 <span>Show Canvas events</span>
               </label>
+
+              {canvasCourseList.length > 0 && (
+                <div style={{ marginLeft:4 }}>
+                  <div style={{ fontSize:11, textTransform:'uppercase', color:'#6b7280', marginBottom:4 }}>
+                    Courses
+                  </div>
+                  <div style={{ display:'grid', gap:4 }}>
+                    {canvasCourseList.map(course => (
+                      <label
+                        key={course}
+                        style={{
+                          display:'inline-flex',
+                          alignItems:'center',
+                          gap:6,
+                          fontSize:12,
+                          opacity: canvasFilter ? 1 : 0.4
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={!canvasFilter}
+                          checked={canvasCourseFilters[course] ?? true}
+                          onChange={(e) =>
+                            setCanvasCourseFilters(prev => ({ ...prev, [course]: e.target.checked }))
+                          }
+                        />
+                        <span>{course}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* Include past toggle + actions + Skip to today (right) */}
-        <div
-          style={{
-            display:'flex',
-            gap:12,
-            alignItems:'center',
-            flexWrap:'wrap',
-            justifyContent:'space-between'
-          }}
-        >
-          <div style={{ display:'flex', gap:12, alignItems:'center', flexWrap:'wrap' }}>
-            <label style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
-              <input
-                type="checkbox"
-                checked={includePast}
-                onChange={(e)=>{ setIncludePast(e.target.checked); }}
-              />
-              Show past deadlines
-            </label>
-
-            <button
-              onClick={clearAllFilters}
-              style={{
-                border: '1px solid rgba(148,163,184,0.7)',
-                background: 'rgba(15,23,42,0.9)',
-                color: '#e5e7eb',
-                padding: '6px 10px',
-                borderRadius: 6,
-                cursor: 'pointer'
-              }}
-              title="Reset search & filters; show upcoming only"
-            >
-              Show all (clear)
-            </button>
+          {/* Campus filter (search-only) */}
+          <div>
+            <div style={{ fontWeight:700, marginBottom:4 }}>Campus</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+              {['all', 'uwb', 'uws', 'uwt'].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setCampusSearchFilter(value)}
+                  style={{
+                    borderRadius:999,
+                    padding:'4px 12px',
+                    border: campusSearchFilter === value
+                      ? '1px solid #2563eb'
+                      : '1px solid #d1d5db',
+                    background: campusSearchFilter === value ? '#dbeafe' : '#ffffff',
+                    color:'#111827',
+                    fontSize:13,
+                    cursor:'pointer'
+                  }}
+                >
+                  {campusLabel(value)}
+                </button>
+              ))}
+            </div>
+            <small style={{ color:'#9ca3af', display:'block', marginTop:4 }}>
+              Only changes what you see on this page.
+            </small>
           </div>
 
-          {showSkipButton && (
-            <button
-              onClick={() => scrollToFirstUpcoming(false)}
-              style={{
-                marginLeft: 'auto',
-                padding: '8px 16px',
-                borderRadius: 999,
-                border: 'none',
-                background: '#2563eb',
-                color: '#ffffff',
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 10px 25px rgba(37,99,235,0.45)',
-                opacity: 0.96,
-                transition: 'opacity 0.18s ease, transform 0.18s ease',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.opacity = '0.96'; e.currentTarget.style.transform = 'translateY(0)'; }}
-              title="You’re away from today — click to jump back"
-            >
-              Back to today
-            </button>
-          )}
-        </div>
-      </div>
+          {/* Past toggle + clear */}
+          <div style={{ borderTop:'1px solid #e5e7eb', paddingTop:8, marginTop:4 }}>
+            <div style={{ display:'grid', gap:8 }}>
+              <label style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:13 }}>
+                <input
+                  type="checkbox"
+                  checked={includePast}
+                  onChange={(e)=>{ setIncludePast(e.target.checked); }}
+                />
+                Show past deadlines
+              </label>
 
-      {/* Results list */}
-      <div
-        style={{
-          background: 'var(--widget-bg)',
-          border: '1px solid rgba(148,163,184,0.4)',
-          borderRadius: 12,
-          padding: '0.75rem'
-        }}
-      >
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <h3 style={{ marginTop: 0 }}>
-            {includePast ? 'All Deadlines' : 'Upcoming Deadlines'}
-          </h3>
-        </div>
+              <button
+                onClick={clearAllFilters}
+                style={{
+                  border: '1px solid #d1d5db',
+                  background: '#ffffff',
+                  color: '#111827',
+                  padding: '6px 10px',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontSize:13
+                }}
+                title="Reset search & filters; show upcoming only"
+              >
+                Show all (clear)
+              </button>
+            </div>
+          </div>
+        </aside>
 
-        <div ref={listRef} style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-          <ul style={{ paddingLeft: 0, listStyle: 'none', margin: 0 }}>
-            {sortedDeadlines.length > 0 ? (
-              sortedDeadlines.map((item, index) => {
-                const absoluteIdx = visibleList.indexOf(item);
-                const k = keyForScraped(item);
-                const isPinned = pinnedKeys.has(k);
-                const iso = toISODateSafe(item.date || item.dateText || item.text || item.event);
+        {/* RIGHT: results list */}
+        <section
+          style={{
+            background: 'var(--widget-bg)',
+            border: '1px solid rgba(148,163,184,0.4)',
+            borderRadius: 12,
+            padding: '0.75rem',
+            minHeight: 0
+          }}
+        >
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <h3 style={{ marginTop: 0 }}>
+              {includePast ? 'All Deadlines' : 'Upcoming Deadlines'}
+            </h3>
 
-                return (
-                  <li
-                    key={k}
-                    data-idx={absoluteIdx}
-                    className="deadline-row"
-                    style={{
-                      padding: '1rem 12px',
-                      borderTop: '1px solid #4b5563',
-                      display: 'flex',
-                      gap: '0.75rem',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
-                    }}
-                  >
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ display:'flex', alignItems:'baseline', gap:8, minWidth:0 }}>
-                        <strong style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                          {item.event || 'Untitled'}
-                        </strong>
-                        <span
-                          style={{
-                            fontSize:11,
-                            color:'#666',
-                            textTransform:'capitalize',
-                            border:'1px solid #eee',
-                            borderRadius:999,
-                            padding:'2px 6px'
-                          }}
-                        >
-                          {item.category || 'other'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={DATE_BADGE_STYLE}>
-                        {iso
-                          ? new Date(iso + 'T00:00:00').toLocaleDateString(undefined, {
-                              month:'short',
-                              day:'numeric',
-                              year:'numeric'
-                            })
-                          : '—'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => togglePinKey(k)}
-                        style={PIN_BADGE_STYLE}
-                        title={isPinned ? 'Unpin' : 'Pin'}
-                      >
-                        {isPinned ? '★ Unpin' : '☆ Pin'}
-                      </button>
-                    </div>
-                  </li>
-                );
-              })
-            ) : (
-              <li style={{ padding:'0.75rem 0' }}>Nothing to show.</li>
+            {showSkipButton && (
+              <button
+                onClick={() => scrollToFirstUpcoming(false)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 999,
+                  border: 'none',
+                  background: '#2563eb',
+                  color: '#ffffff',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontSize:13
+                }}
+              >
+                Back to today
+              </button>
             )}
-          </ul>
-        </div>
+          </div>
+
+          <div ref={listRef} style={{ maxHeight: '72vh', overflowY: 'auto' }}>
+            <ul style={{ paddingLeft: 0, listStyle: 'none', margin: 0 }}>
+              {sortedDeadlines.length > 0 ? (
+                sortedDeadlines.map((item) => {
+                  const absoluteIdx = visibleList.indexOf(item);
+                  const k = keyForScraped(item);
+                  const isPinned = pinnedKeys.has(k);
+                  const iso = toISODateSafe(item.date || item.dateText || item.text || item.event);
+
+                  return (
+                    <li
+                      key={k}
+                      data-idx={absoluteIdx}
+                      className="deadline-row"
+                      style={{
+                        padding: '1rem 12px',
+                        borderTop: '1px solid #e5e7eb',
+                        display: 'flex',
+                        gap: '0.75rem',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}
+                    >
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display:'flex', alignItems:'baseline', gap:8, minWidth:0 }}>
+                          <strong style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                            {item.event || 'Untitled'}
+                          </strong>
+                          <span
+                            style={{
+                              fontSize:11,
+                              color:'#374151',
+                              textTransform:'capitalize',
+                              border:'1px solid #e5e7eb',
+                              borderRadius:999,
+                              padding:'2px 6px',
+                              background:'#f9fafb'
+                            }}
+                          >
+                            {item.category || 'other'}
+                          </span>
+                          {item.campus && (
+                            <span
+                              style={{
+                                fontSize:10,
+                                textTransform:'uppercase',
+                                color:'#6b7280',
+                                padding:'1px 5px',
+                                borderRadius:999,
+                                border:'1px solid #e5e7eb',
+                                background:'#f3f4f6'
+                              }}
+                            >
+                              {item.campus.toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={DATE_BADGE_STYLE}>
+                          {iso
+                            ? new Date(iso + 'T00:00:00').toLocaleDateString(undefined, {
+                                month:'short',
+                                day:'numeric',
+                                year:'numeric'
+                              })
+                            : '—'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => togglePinKey(k)}
+                          style={PIN_BADGE_STYLE}
+                          title={isPinned ? 'Unpin' : 'Pin'}
+                        >
+                          {isPinned ? '★ Unpin' : '☆ Pin'}
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })
+              ) : (
+                <li style={{ padding:'0.75rem 0' }}>Nothing to show.</li>
+              )}
+            </ul>
+          </div>
+        </section>
       </div>
     </div>
   );
