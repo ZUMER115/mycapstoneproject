@@ -3,15 +3,17 @@ const mongoose = require('mongoose');
 
 const deadlineSchema = new mongoose.Schema(
   {
-    event:    { type: String, required: true },      // e.g. "Tuition due"
-    date:     { type: String, required: true },      // raw date string from site
-    category: { type: String, default: 'other' },    // 'registration' | 'add/drop' | 'financial-aid' | ...
-    source:   { type: String, default: 'scraped' },  // 'scraped' or 'personal'
+    event:    { type: String, required: true },   // e.g. "Tuition due"
+    date:     { type: String, required: true },   // raw date string from site
+    category: { type: String, default: 'other' }, // 'registration' | 'add/drop' | 'financial-aid' | ...
 
-    // NEW: which campus this deadline is from
+    // UW vs Canvas, etc.
+    source:   { type: String, default: 'uw' },    // 'uw' | 'canvas' | ...
+
+    // Which campus this deadline is from
     campus: {
       type: String,
-      enum: ['uwb', 'uws', 'other'],
+      enum: ['uwb', 'uws', 'uwt', 'other'],       // 👈 added 'uwt'
       default: 'uwb'
     },
 
