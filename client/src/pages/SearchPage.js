@@ -427,19 +427,20 @@ export default function SearchPage() {
     return 'All campuses';
   };
 
-  return (
-    <div
-      style={{
-        padding: '1.25rem',
-        height: '100vh',
-        boxSizing: 'border-box',
-        overflow: 'hidden',           // 🔹 page itself doesn't scroll
-        background: 'var(--page-bg)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.75rem'
-      }}
-    >
+return (
+  <div
+    style={{
+      padding: '1.25rem',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '1rem',
+      height: '100vh',           // 🔹 fill viewport
+      boxSizing: 'border-box',
+      overflow: 'hidden',        // 🔹 page itself doesn’t scroll
+      background: 'var(--page-bg)'
+    }}
+  >
+
       <style>{`
         .deadline-row {
           --bg: transparent;
@@ -713,147 +714,156 @@ export default function SearchPage() {
               </div>
             </div>
           </aside>
+{/* Results list */}
+<div style={{ flex: 1, minHeight: 0 }}>
+  <div
+    style={{
+      background: 'var(--widget-bg)',
+      border: '2px solid #2563eb',                     // 🔹 stronger outline
+      boxShadow: '0 12px 30px rgba(37,99,235,0.18)',   // 🔹 subtle blue shadow
+      borderRadius: 14,
+      padding: '0.9rem 0.9rem 1.6rem',                 // 🔹 more bottom padding
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%'
+    }}
+  >
+    <div
+      style={{
+        display:'flex',
+        justifyContent:'space-between',
+        alignItems:'center',
+        marginBottom:8
+      }}
+    >
+      <h3 style={{ marginTop: 0 }}>
+        {includePast ? 'All Deadlines' : 'Upcoming Deadlines'}
+      </h3>
 
-          {/* RIGHT: results list */}
-          <section
-            style={{
-              background: 'var(--widget-bg)',
-              border: '2px solid #2563eb',            // 🔹 more obvious outline
-              boxShadow: '0 12px 30px rgba(37,99,235,0.18)',
-              borderRadius: 14,
-              padding: '0.9rem 0.9rem 1.5rem',       // 🔹 extra bottom space
-              minHeight: 0,
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-          >
-            <div
-              style={{
-                display:'flex',
-                justifyContent:'space-between',
-                alignItems:'center',
-                marginBottom:8,
-                flexShrink:0
-              }}
-            >
-              <h3 style={{ marginTop: 0 }}>
-                {includePast ? 'All Deadlines' : 'Upcoming Deadlines'}
-              </h3>
+      {showSkipButton && (
+        <button
+          onClick={() => scrollToFirstUpcoming(false)}
+          style={{
+            padding: '6px 14px',
+            borderRadius: 999,
+            border: 'none',
+            background: '#2563eb',
+            color: '#ffffff',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontSize: 13
+          }}
+        >
+          Back to today
+        </button>
+      )}
+    </div>
 
-              {showSkipButton && (
-                <button
-                  onClick={() => scrollToFirstUpcoming(false)}
+    {/* 🔹 only this part scrolls */}
+    <div
+      ref={listRef}
+      style={{
+        flex: 1,
+        minHeight: 0,
+        overflowY: 'auto'
+      }}
+    >
+      <ul style={{ paddingLeft: 0, listStyle: 'none', margin: 0 }}>
+        {sortedDeadlines.length > 0 ? (
+          sortedDeadlines.map((item, index) => {
+            const absoluteIdx = visibleList.indexOf(item);
+            const k = keyForScraped(item);
+            const isPinned = pinnedKeys.has(k);
+            const iso = toISODateSafe(
+              item.date || item.dateText || item.text || item.event
+            );
+
+            return (
+              <li
+                key={k}
+                data-idx={absoluteIdx}
+                className="deadline-row"
+                style={{
+                  padding: '1rem 12px',
+                  borderTop: '1px solid #e5e7eb',
+                  display: 'flex',
+                  gap: '0.75rem',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'baseline',
+                      gap: 8,
+                      minWidth: 0
+                    }}
+                  >
+                    <strong
+                      style={{
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}
+                    >
+                      {item.event || 'Untitled'}
+                    </strong>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: '#374151',
+                        textTransform: 'capitalize',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: 999,
+                        padding: '2px 6px',
+                        background: '#f9fafb'
+                      }}
+                    >
+                      {item.category || 'other'}
+                    </span>
+                  </div>
+                </div>
+
+                <div
                   style={{
-                    padding: '6px 14px',
-                    borderRadius: 999,
-                    border: 'none',
-                    background: '#2563eb',
-                    color: '#ffffff',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize:13
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8
                   }}
                 >
-                  Back to today
-                </button>
-              )}
-            </div>
-
-            {/* 🔹 only this scrolls */}
-            <div
-              ref={listRef}
-              style={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: 'auto'
-              }}
-            >
-              <ul style={{ paddingLeft: 0, listStyle: 'none', margin: 0 }}>
-                {sortedDeadlines.length > 0 ? (
-                  sortedDeadlines.map((item) => {
-                    const absoluteIdx = visibleList.indexOf(item);
-                    const k = keyForScraped(item);
-                    const isPinned = pinnedKeys.has(k);
-                    const iso = toISODateSafe(item.date || item.dateText || item.text || item.event);
-
-                    return (
-                      <li
-                        key={k}
-                        data-idx={absoluteIdx}
-                        className="deadline-row"
-                        style={{
-                          padding: '1rem 12px',
-                          borderTop: '1px solid #e5e7eb',
-                          display: 'flex',
-                          gap: '0.75rem',
-                          alignItems: 'center',
-                          justifyContent: 'space-between'
-                        }}
-                      >
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ display:'flex', alignItems:'baseline', gap:8, minWidth:0 }}>
-                            <strong style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                              {item.event || 'Untitled'}
-                            </strong>
-                            <span
-                              style={{
-                                fontSize:11,
-                                color:'#374151',
-                                textTransform:'capitalize',
-                                border:'1px solid #e5e7eb',
-                                borderRadius:999,
-                                padding:'2px 6px',
-                                background:'#f9fafb'
-                              }}
-                            >
-                              {item.category || 'other'}
-                            </span>
-                            {item.campus && (
-                              <span
-                                style={{
-                                  fontSize:10,
-                                  textTransform:'uppercase',
-                                  color:'#6b7280',
-                                  padding:'1px 5px',
-                                  borderRadius:999,
-                                  border:'1px solid #e5e7eb',
-                                  background:'#f3f4f6'
-                                }}
-                              >
-                                {item.campus.toUpperCase()}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={DATE_BADGE_STYLE}>
-                            {iso
-                              ? new Date(iso + 'T00:00:00').toLocaleDateString(undefined, {
-                                  month:'short',
-                                  day:'numeric',
-                                  year:'numeric'
-                                })
-                              : '—'}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => togglePinKey(k)}
-                            style={PIN_BADGE_STYLE}
-                            title={isPinned ? 'Unpin' : 'Pin'}
-                          >
-                            {isPinned ? '★ Unpin' : '☆ Pin'}
-                          </button>
-                        </div>
-                      </li>
-                    );
-                  })
-                ) : (
-                  <li style={{ padding:'0.75rem 0' }}>Nothing to show.</li>
-                )}
-              </ul>
-            </div>
-          </section>
+                  <span style={DATE_BADGE_STYLE}>
+                    {iso
+                      ? new Date(iso + 'T00:00:00').toLocaleDateString(
+                          undefined,
+                          {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          }
+                        )
+                      : '—'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => togglePinKey(k)}
+                    style={PIN_BADGE_STYLE}
+                    title={isPinned ? 'Unpin' : 'Pin'}
+                  >
+                    {isPinned ? '★ Unpin' : '☆ Pin'}
+                  </button>
+                </div>
+              </li>
+            );
+          })
+        ) : (
+          <li style={{ padding: '0.75rem 0' }}>Nothing to show.</li>
+        )}
+      </ul>
+    </div>
+  </div>
+</div>
         </div>
       </div>
     </div>
