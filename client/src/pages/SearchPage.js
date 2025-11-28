@@ -706,10 +706,11 @@ export default function SearchPage() {
         <section
           style={{
             background: 'var(--widget-bg)',
-            border: '1px solid rgba(148,163,184,0.4)',
+            border: '2px solid #2563eb',                     // 🔹 clearer outline
+            boxShadow: '0 12px 32px rgba(37,99,235,0.16)',  // 🔹 subtle blue glow
             borderRadius: 12,
-            padding: '0.75rem',
-            minHeight: 0
+            padding: '0.9rem',
+            minHeight: '72vh'                               // 🔹 taller card
           }}
         >
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -736,7 +737,14 @@ export default function SearchPage() {
             )}
           </div>
 
-          <div ref={listRef} style={{ maxHeight: '72vh', overflowY: 'auto' }}>
+          <div
+            ref={listRef}
+            style={{
+              maxHeight: '78vh',          // 🔹 uses more vertical space
+              overflowY: 'auto',
+              paddingBottom: '0.5rem'
+            }}
+          >
             <ul style={{ paddingLeft: 0, listStyle: 'none', margin: 0 }}>
               {sortedDeadlines.length > 0 ? (
                 sortedDeadlines.map((item) => {
