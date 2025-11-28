@@ -427,20 +427,14 @@ export default function SearchPage() {
     return 'All campuses';
   };
 
-return (
-  <div
-    style={{
-      padding: '1.25rem',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '1rem',
-      height: '100vh',           // 🔹 fill viewport
-      boxSizing: 'border-box',
-      overflow: 'hidden',        // 🔹 page itself doesn’t scroll
-      background: 'var(--page-bg)'
-    }}
-  >
-
+  return (
+    <div
+      style={{
+        padding: '1.25rem',
+        minHeight: '100vh',
+        background: 'var(--page-bg)'
+      }}
+    >
       <style>{`
         .deadline-row {
           --bg: transparent;
@@ -487,15 +481,12 @@ return (
           display: grid;
           grid-template-columns: minmax(230px, 290px) minmax(0, 1fr);
           gap: 1rem;
-          align-items: stretch;
-          height: 100%;          /* 🔹 fill remaining height */
-          min-height: 0;
+          align-items: flex-start;
         }
 
         @media (max-width: 900px) {
           .search-layout {
             grid-template-columns: minmax(0, 1fr);
-            grid-auto-rows: minmax(0, 1fr);
           }
         }
       `}</style>
@@ -506,365 +497,332 @@ return (
         </div>
       )}
 
-      <h1 style={{ margin: 0, flexShrink: 0 }}>Search Deadlines</h1>
+      <h1 style={{ margin: '0 0 0.75rem 0' }}>Search Deadlines</h1>
 
-      {/* Layout fills everything under the header */}
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <div className="search-layout">
-          {/* LEFT SIDEBAR: filters */}
-          <aside
-            style={{
-              background: 'var(--widget-bg)',
-              border: '1px solid rgba(148,163,184,0.4)',
-              borderRadius: 12,
-              padding: '0.75rem',
-              display: 'grid',
-              gap: 14,
-              minHeight: 0,
-              overflowY: 'auto'
-            }}
-          >
-            {/* Search */}
-            <div>
-              <label style={{ display:'block', fontWeight:700, marginBottom:6 }}>Search</label>
-              <input
-                type="text"
-                placeholder="Search by keyword…"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{
-                  padding:'0.45rem 0.55rem',
-                  width:'100%',
-                  borderRadius:6,
-                  border:'1px solid #d1d5db',
-                  background:'#ffffff',
-                  color:'#111827'
-                }}
-              />
-            </div>
-
-            {/* Categories */}
-            <div>
-              <div style={{ fontWeight:700, marginBottom:4 }}>Categories</div>
-              <div style={{ display:'grid', gap:6 }}>
-                {CANONICAL_CATS.map((catKey) => {
-                  const label =
-                    catKey === 'financial-aid' ? 'Financial-Aid'
-                    : catKey === 'add/drop' ? 'Add/Drop'
-                    : catKey.charAt(0).toUpperCase() + catKey.slice(1);
-
-                  // hide "Other" if there are no "other" events at all
-                  if (catKey === 'other') {
-                    const hasOther = deadlines.some(d => {
-                      const c = (d.category || 'other').toLowerCase();
-                      return !CANONICAL_CATS.includes(c) || c === 'other';
-                    });
-                    if (!hasOther) return null;
-                  }
-
-                  return (
-                    <label
-                      key={catKey}
-                      style={{
-                        display:'inline-flex',
-                        alignItems:'center',
-                        gap:8,
-                        border:'1px solid #d1d5db',
-                        borderRadius:999,
-                        padding:'4px 10px',
-                        background:'#ffffff',
-                        color:'#111827',
-                        fontSize:13
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={categoryFilters[catKey] ?? true}
-                        onChange={(e) =>
-                          setCategoryFilters(prev => ({ ...prev, [catKey]: e.target.checked }))
-                        }
-                      />
-                      <span>{label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Canvas */}
-            <div>
-              <div style={{ fontWeight:700, marginBottom:4 }}>Canvas</div>
-              <div
-                style={{
-                  display:'grid',
-                  gap:6,
-                  padding:'6px 8px',
-                  borderRadius:8,
-                  border:'1px solid #e5e7eb',
-                  background:'#f9fafb'
-                }}
-              >
-                <label
-                  style={{
-                    display:'inline-flex',
-                    alignItems:'center',
-                    gap:8,
-                    fontSize:13
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={canvasFilter}
-                    onChange={(e) => setCanvasFilter(e.target.checked)}
-                  />
-                  <span>Show Canvas events</span>
-                </label>
-
-                {canvasCourseList.length > 0 && (
-                  <div style={{ marginLeft:4 }}>
-                    <div style={{ fontSize:11, textTransform:'uppercase', color:'#6b7280', marginBottom:4 }}>
-                      Courses
-                    </div>
-                    <div style={{ display:'grid', gap:4 }}>
-                      {canvasCourseList.map(course => (
-                        <label
-                          key={course}
-                          style={{
-                            display:'inline-flex',
-                            alignItems:'center',
-                            gap:6,
-                            fontSize:12,
-                            opacity: canvasFilter ? 1 : 0.4
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            disabled={!canvasFilter}
-                            checked={canvasCourseFilters[course] ?? true}
-                            onChange={(e) =>
-                              setCanvasCourseFilters(prev => ({ ...prev, [course]: e.target.checked }))
-                            }
-                          />
-                          <span>{course}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Campus filter (search-only) */}
-            <div>
-              <div style={{ fontWeight:700, marginBottom:4 }}>Campus</div>
-              <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                {['all', 'uwb', 'uws', 'uwt'].map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setCampusSearchFilter(value)}
-                    style={{
-                      borderRadius:999,
-                      padding:'4px 12px',
-                      border: campusSearchFilter === value
-                        ? '1px solid #2563eb'
-                        : '1px solid #d1d5db',
-                      background: campusSearchFilter === value ? '#dbeafe' : '#ffffff',
-                      color:'#111827',
-                      fontSize:13,
-                      cursor:'pointer'
-                    }}
-                  >
-                    {campusLabel(value)}
-                  </button>
-                ))}
-              </div>
-              <small style={{ color:'#9ca3af', display:'block', marginTop:4 }}>
-                Only changes what you see on this page.
-              </small>
-            </div>
-
-            {/* Past toggle + clear */}
-            <div style={{ borderTop:'1px solid #e5e7eb', paddingTop:8, marginTop:4 }}>
-              <div style={{ display:'grid', gap:8 }}>
-                <label style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:13 }}>
-                  <input
-                    type="checkbox"
-                    checked={includePast}
-                    onChange={(e)=>{ setIncludePast(e.target.checked); }}
-                  />
-                  Show past deadlines
-                </label>
-
-                <button
-                  onClick={clearAllFilters}
-                  style={{
-                    border: '1px solid #d1d5db',
-                    background: '#ffffff',
-                    color: '#111827',
-                    padding: '6px 10px',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    fontSize:13
-                  }}
-                  title="Reset search & filters; show upcoming only"
-                >
-                  Show all (clear)
-                </button>
-              </div>
-            </div>
-          </aside>
-{/* Results list */}
-<div style={{ flex: 1, minHeight: 0 }}>
-  <div
-    style={{
-      background: 'var(--widget-bg)',
-      border: '2px solid #2563eb',                     // 🔹 stronger outline
-      boxShadow: '0 12px 30px rgba(37,99,235,0.18)',   // 🔹 subtle blue shadow
-      borderRadius: 14,
-      padding: '0.9rem 0.9rem 1.6rem',                 // 🔹 more bottom padding
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100%'
-    }}
-  >
-    <div
-      style={{
-        display:'flex',
-        justifyContent:'space-between',
-        alignItems:'center',
-        marginBottom:8
-      }}
-    >
-      <h3 style={{ marginTop: 0 }}>
-        {includePast ? 'All Deadlines' : 'Upcoming Deadlines'}
-      </h3>
-
-      {showSkipButton && (
-        <button
-          onClick={() => scrollToFirstUpcoming(false)}
+      <div className="search-layout">
+        {/* LEFT SIDEBAR: filters */}
+        <aside
           style={{
-            padding: '6px 14px',
-            borderRadius: 999,
-            border: 'none',
-            background: '#2563eb',
-            color: '#ffffff',
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontSize: 13
+            background: 'var(--widget-bg)',
+            border: '1px solid rgba(148,163,184,0.4)',
+            borderRadius: 12,
+            padding: '0.75rem',
+            display: 'grid',
+            gap: 14
           }}
         >
-          Back to today
-        </button>
-      )}
-    </div>
+          {/* Search */}
+          <div>
+            <label style={{ display:'block', fontWeight:700, marginBottom:6 }}>Search</label>
+            <input
+              type="text"
+              placeholder="Search by keyword…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                padding:'0.45rem 0.55rem',
+                width:'100%',
+                borderRadius:6,
+                border:'1px solid #d1d5db',
+                background:'#ffffff',
+                color:'#111827'
+              }}
+            />
+          </div>
 
-    {/* 🔹 only this part scrolls */}
-    <div
-      ref={listRef}
-      style={{
-        flex: 1,
-        minHeight: 0,
-        overflowY: 'auto'
-      }}
-    >
-      <ul style={{ paddingLeft: 0, listStyle: 'none', margin: 0 }}>
-        {sortedDeadlines.length > 0 ? (
-          sortedDeadlines.map((item, index) => {
-            const absoluteIdx = visibleList.indexOf(item);
-            const k = keyForScraped(item);
-            const isPinned = pinnedKeys.has(k);
-            const iso = toISODateSafe(
-              item.date || item.dateText || item.text || item.event
-            );
+          {/* Categories */}
+          <div>
+            <div style={{ fontWeight:700, marginBottom:4 }}>Categories</div>
+            <div style={{ display:'grid', gap:6 }}>
+              {CANONICAL_CATS.map((catKey) => {
+                const label =
+                  catKey === 'financial-aid' ? 'Financial-Aid'
+                  : catKey === 'add/drop' ? 'Add/Drop'
+                  : catKey.charAt(0).toUpperCase() + catKey.slice(1);
 
-            return (
-              <li
-                key={k}
-                data-idx={absoluteIdx}
-                className="deadline-row"
-                style={{
-                  padding: '1rem 12px',
-                  borderTop: '1px solid #e5e7eb',
-                  display: 'flex',
-                  gap: '0.75rem',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
-                }}
-              >
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div
+                // hide "Other" if there are no "other" events at all
+                if (catKey === 'other') {
+                  const hasOther = deadlines.some(d => {
+                    const c = (d.category || 'other').toLowerCase();
+                    return !CANONICAL_CATS.includes(c) || c === 'other';
+                  });
+                  if (!hasOther) return null;
+                }
+
+                return (
+                  <label
+                    key={catKey}
                     style={{
-                      display: 'flex',
-                      alignItems: 'baseline',
-                      gap: 8,
-                      minWidth: 0
+                      display:'inline-flex',
+                      alignItems:'center',
+                      gap:8,
+                      border:'1px solid #d1d5db',
+                      borderRadius:999,
+                      padding:'4px 10px',
+                      background:'#ffffff',
+                      color:'#111827',
+                      fontSize:13
                     }}
                   >
-                    <strong
-                      style={{
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}
-                    >
-                      {item.event || 'Untitled'}
-                    </strong>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: '#374151',
-                        textTransform: 'capitalize',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: 999,
-                        padding: '2px 6px',
-                        background: '#f9fafb'
-                      }}
-                    >
-                      {item.category || 'other'}
-                    </span>
+                    <input
+                      type="checkbox"
+                      checked={categoryFilters[catKey] ?? true}
+                      onChange={(e) =>
+                        setCategoryFilters(prev => ({ ...prev, [catKey]: e.target.checked }))
+                      }
+                    />
+                    <span>{label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Canvas */}
+          <div>
+            <div style={{ fontWeight:700, marginBottom:4 }}>Canvas</div>
+            <div
+              style={{
+                display:'grid',
+                gap:6,
+                padding:'6px 8px',
+                borderRadius:8,
+                border:'1px solid #e5e7eb',
+                background:'#f9fafb'
+              }}
+            >
+              <label
+                style={{
+                  display:'inline-flex',
+                  alignItems:'center',
+                  gap:8,
+                  fontSize:13
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={canvasFilter}
+                  onChange={(e) => setCanvasFilter(e.target.checked)}
+                />
+                <span>Show Canvas events</span>
+              </label>
+
+              {canvasCourseList.length > 0 && (
+                <div style={{ marginLeft:4 }}>
+                  <div style={{ fontSize:11, textTransform:'uppercase', color:'#6b7280', marginBottom:4 }}>
+                    Courses
+                  </div>
+                  <div style={{ display:'grid', gap:4 }}>
+                    {canvasCourseList.map(course => (
+                      <label
+                        key={course}
+                        style={{
+                          display:'inline-flex',
+                          alignItems:'center',
+                          gap:6,
+                          fontSize:12,
+                          opacity: canvasFilter ? 1 : 0.4
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={!canvasFilter}
+                          checked={canvasCourseFilters[course] ?? true}
+                          onChange={(e) =>
+                            setCanvasCourseFilters(prev => ({ ...prev, [course]: e.target.checked }))
+                          }
+                        />
+                        <span>{course}</span>
+                      </label>
+                    ))}
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
 
-                <div
+          {/* Campus filter (search-only) */}
+          <div>
+            <div style={{ fontWeight:700, marginBottom:4 }}>Campus</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+              {['all', 'uwb', 'uws', 'uwt'].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setCampusSearchFilter(value)}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8
+                    borderRadius:999,
+                    padding:'4px 12px',
+                    border: campusSearchFilter === value
+                      ? '1px solid #2563eb'
+                      : '1px solid #d1d5db',
+                    background: campusSearchFilter === value ? '#dbeafe' : '#ffffff',
+                    color:'#111827',
+                    fontSize:13,
+                    cursor:'pointer'
                   }}
                 >
-                  <span style={DATE_BADGE_STYLE}>
-                    {iso
-                      ? new Date(iso + 'T00:00:00').toLocaleDateString(
-                          undefined,
-                          {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          }
-                        )
-                      : '—'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => togglePinKey(k)}
-                    style={PIN_BADGE_STYLE}
-                    title={isPinned ? 'Unpin' : 'Pin'}
-                  >
-                    {isPinned ? '★ Unpin' : '☆ Pin'}
-                  </button>
-                </div>
-              </li>
-            );
-          })
-        ) : (
-          <li style={{ padding: '0.75rem 0' }}>Nothing to show.</li>
-        )}
-      </ul>
-    </div>
-  </div>
-</div>
-        </div>
+                  {campusLabel(value)}
+                </button>
+              ))}
+            </div>
+            <small style={{ color:'#9ca3af', display:'block', marginTop:4 }}>
+              Only changes what you see on this page.
+            </small>
+          </div>
+
+          {/* Past toggle + clear */}
+          <div style={{ borderTop:'1px solid #e5e7eb', paddingTop:8, marginTop:4 }}>
+            <div style={{ display:'grid', gap:8 }}>
+              <label style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:13 }}>
+                <input
+                  type="checkbox"
+                  checked={includePast}
+                  onChange={(e)=>{ setIncludePast(e.target.checked); }}
+                />
+                Show past deadlines
+              </label>
+
+              <button
+                onClick={clearAllFilters}
+                style={{
+                  border: '1px solid #d1d5db',
+                  background: '#ffffff',
+                  color: '#111827',
+                  padding: '6px 10px',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontSize:13
+                }}
+                title="Reset search & filters; show upcoming only"
+              >
+                Show all (clear)
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* RIGHT: results list */}
+        <section
+          style={{
+            background: 'var(--widget-bg)',
+            border: '1px solid rgba(148,163,184,0.4)',
+            borderRadius: 12,
+            padding: '0.75rem',
+            minHeight: 0
+          }}
+        >
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <h3 style={{ marginTop: 0 }}>
+              {includePast ? 'All Deadlines' : 'Upcoming Deadlines'}
+            </h3>
+
+            {showSkipButton && (
+              <button
+                onClick={() => scrollToFirstUpcoming(false)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 999,
+                  border: 'none',
+                  background: '#2563eb',
+                  color: '#ffffff',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontSize:13
+                }}
+              >
+                Back to today
+              </button>
+            )}
+          </div>
+
+          <div ref={listRef} style={{ maxHeight: '72vh', overflowY: 'auto' }}>
+            <ul style={{ paddingLeft: 0, listStyle: 'none', margin: 0 }}>
+              {sortedDeadlines.length > 0 ? (
+                sortedDeadlines.map((item) => {
+                  const absoluteIdx = visibleList.indexOf(item);
+                  const k = keyForScraped(item);
+                  const isPinned = pinnedKeys.has(k);
+                  const iso = toISODateSafe(item.date || item.dateText || item.text || item.event);
+
+                  return (
+                    <li
+                      key={k}
+                      data-idx={absoluteIdx}
+                      className="deadline-row"
+                      style={{
+                        padding: '1rem 12px',
+                        borderTop: '1px solid #e5e7eb',
+                        display: 'flex',
+                        gap: '0.75rem',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}
+                    >
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display:'flex', alignItems:'baseline', gap:8, minWidth:0 }}>
+                          <strong style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                            {item.event || 'Untitled'}
+                          </strong>
+                          <span
+                            style={{
+                              fontSize:11,
+                              color:'#374151',
+                              textTransform:'capitalize',
+                              border:'1px solid #e5e7eb',
+                              borderRadius:999,
+                              padding:'2px 6px',
+                              background:'#f9fafb'
+                            }}
+                          >
+                            {item.category || 'other'}
+                          </span>
+                          {item.campus && (
+                            <span
+                              style={{
+                                fontSize:10,
+                                textTransform:'uppercase',
+                                color:'#6b7280',
+                                padding:'1px 5px',
+                                borderRadius:999,
+                                border:'1px solid #e5e7eb',
+                                background:'#f3f4f6'
+                              }}
+                            >
+                              {item.campus.toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={DATE_BADGE_STYLE}>
+                          {iso
+                            ? new Date(iso + 'T00:00:00').toLocaleDateString(undefined, {
+                                month:'short',
+                                day:'numeric',
+                                year:'numeric'
+                              })
+                            : '—'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => togglePinKey(k)}
+                          style={PIN_BADGE_STYLE}
+                          title={isPinned ? 'Unpin' : 'Pin'}
+                        >
+                          {isPinned ? '★ Unpin' : '☆ Pin'}
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })
+              ) : (
+                <li style={{ padding:'0.75rem 0' }}>Nothing to show.</li>
+              )}
+            </ul>
+          </div>
+        </section>
       </div>
     </div>
   );
