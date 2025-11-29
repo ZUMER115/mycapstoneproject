@@ -241,7 +241,23 @@ const Login = ({ onLogin }) => {
                   {showPwd ? 'Hide' : 'Show'}
                 </button>
               </div>
+
+              <div
+                style={{
+                  marginTop: 6,
+                  textAlign: 'right',
+                  fontSize: 12
+                }}
+              >
+                <Link
+                  to="/forgot-password"
+                  style={{ color: '#4f46e5', fontWeight: 600, textDecoration: 'none' }}
+                >
+                  Forgot password?
+                </Link>
+              </div>
             </div>
+
 
             <button type="submit" style={btn} disabled={status === 'loading'}>
               {status === 'loading' ? 'Signing in…' : 'Sign in'}

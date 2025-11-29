@@ -11,6 +11,7 @@ import {
 import Dashboard from './Dashboard';
 import Login from './Login';
 import CalendarPage from './pages/CalendarPage';
+import ForgotPassword from './pages/ForgotPassword';
 import Profile from './pages/Profile';
 import SearchPage from './pages/SearchPage';
 import Register from './Register';
@@ -540,6 +541,8 @@ function AppFrame() {
           }
         />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        
         <Route
           path="/dashboard"
           element={token ? <Dashboard /> : <Navigate to="/" />}

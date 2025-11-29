@@ -6,7 +6,9 @@ const {
   login,
   verifyEmail,
   updateEmail,
-  changePassword
+  changePassword,
+  forgotPassword,     // ⬅️ NEW
+  resetPassword       // ⬅️ NEW
 } = require('../controllers/authController');
 
 const bcrypt = require('bcryptjs');
@@ -17,6 +19,10 @@ const authMiddleware = require('../middleware/authMiddleware');
 router.post('/register', register);
 router.post('/login', login);
 router.get('/verify', verifyEmail);
+
+// Forgot / Reset password (no auth required)
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
 
 // Protected profile actions
 router.put('/email', authMiddleware, updateEmail);
