@@ -654,84 +654,205 @@ const recommended = useMemo(() => {
     padding: '1rem'
   };
 
-  const CONTACTS = [
-    { name: 'Financial Aid',     phone: '425-352-5240', email: 'uwbfaid@uw.edu' },
-    { name: 'Registration',      phone: '425-352-5000', email: 'uwbreg@uw.edu' },
-    { name: 'Admissions',        phone: '425-352-5000', email: 'uwbinfo@uw.edu' },
-    { name: 'Academic Advising', phone: null,           email: 'uwbadvis@uw.edu', url: 'https://www.uwb.edu/advising/' }
-  ];
+// Campus-specific contact sets.
+// You can refine / expand these later if you want exact offices.
+const CAMPUS_CONTACTS = {
+  uwb: [
+    { name: 'Financial Aid (Bothell)',     phone: '425-352-5240', email: 'uwbfaid@uw.edu' },
+    { name: 'Registration (Bothell)',      phone: '425-352-5000', email: 'uwbreg@uw.edu' },
+    { name: 'Admissions (Bothell)',        phone: '425-352-5000', email: 'uwbinfo@uw.edu' },
+    { name: 'Academic Advising (Bothell)', phone: null,           email: 'uwbadvis@uw.edu', url: 'https://www.uwb.edu/advising/' }
+  ],
+  uws: [
+    {
+      name: 'UW Seattle – Student Services',
+      phone: null,
+      email: null,
+      url: 'https://www.washington.edu/'
+    },
+    {
+      name: 'UW Seattle – Advising',
+      phone: null,
+      email: null,
+      url: 'https://www.washington.edu/uaa/advising/'
+    }
+  ],
+  uwt: [
+    {
+      name: 'UW Tacoma – Student Services',
+      phone: null,
+      email: null,
+      url: 'https://www.tacoma.uw.edu/'
+    }
+  ]
+};
+
 
   const telHref = (s) => `tel:${String(s).replace(/[^\d+]/g, '')}`;
-  const ContactsCard = () => {
-    const BTN = {
-      padding: '10px 14px',
-      border: '1px solid rgba(148,163,184,0.5)',
-      borderRadius: 10,
-      background: 'var(--widget-bg)',
-      textDecoration: 'none',
-      fontSize: 15,
-      fontWeight: 600,
-      cursor: 'pointer'
-    };
+const ContactsCard = ({ campusPref }) => {
+  const BTN = {
+    padding: '10px 14px',
+    border: '1px solid rgba(148,163,184,0.5)',
+    borderRadius: 10,
+    background: 'var(--widget-bg)',
+    textDecoration: 'none',
+    fontSize: 15,
+    fontWeight: 600,
+    cursor: 'pointer'
+  };
 
-    return (
-      <div style={card}>
-        <h3 style={{ margin: '0 0 .75rem 0', fontSize: '1.3rem' }}>Campus Contacts</h3>
+  // Normalize campus key
+  const campusKey =
+    campusPref === 'uwb' ? 'uwb' :
+    campusPref === 'uws' ? 'uws' :
+    campusPref === 'uwt' ? 'uwt' :
+    'both';
 
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 16 }}>
-          {CONTACTS.map((c, i) => (
-            <li
-              key={i}
+  // Build sections to render
+  let sections;
+  if (campusKey === 'both') {
+    sections = [
+      { label: 'UW Bothell', contacts: CAMPUS_CONTACTS.uwb || [] },
+      { label: 'UW Seattle', contacts: CAMPUS_CONTACTS.uws || [] },
+      { label: 'UW Tacoma',  contacts: CAMPUS_CONTACTS.uwt || [] }
+    ].filter(sec => sec.contacts && sec.contacts.length);
+  } else {
+    const label =
+      campusKey === 'uwb' ? 'UW Bothell' :
+      campusKey === 'uws' ? 'UW Seattle' :
+      campusKey === 'uwt' ? 'UW Tacoma' :
+      'UW Campus';
+
+    sections = [
+      {
+        label,
+        contacts: CAMPUS_CONTACTS[campusKey] || []
+      }
+    ];
+  }
+
+  return (
+    <div style={card}>
+      <h3 style={{ margin: '0 0 .25rem 0', fontSize: '1.3rem' }}>Campus Contacts</h3>
+      <p
+        style={{
+          margin: 0,
+          fontSize: 13,
+          color: '#6b7280'
+        }}
+      >
+        Showing offices for your campus preference.
+      </p>
+
+      <div style={{ marginTop: 14, display: 'grid', gap: 14 }}>
+        {sections.map((section, idx) => (
+          <div key={section.label + idx}>
+            {sections.length > 1 && (
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  color: '#6b7280',
+                  marginBottom: 6
+                }}
+              >
+                {section.label}
+              </div>
+            )}
+
+            <ul
               style={{
-                border: '1px solid rgba(148,163,184,0.4)',
-                borderRadius: 12,
-                padding: 16,
-                background: 'var(--widget-sub-bg)'
+                listStyle: 'none',
+                padding: 0,
+                margin: 0,
+                display: 'grid',
+                gap: 12
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                <strong style={{ fontSize: 19 }}>{c.name}</strong>
-                {c.url && (
-                  <a
-                    href={c.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ fontSize: 14, color: '#60a5fa', textDecoration: 'none' }}
+              {section.contacts.map((c, i) => (
+                <li
+                  key={`${section.label}-${i}`}
+                  style={{
+                    border: '1px solid rgba(148,163,184,0.4)',
+                    borderRadius: 12,
+                    padding: 16,
+                    background: 'var(--widget-sub-bg)'
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'baseline',
+                      gap: 8
+                    }}
                   >
-                    Visit site ↗
-                  </a>
-                )}
-              </div>
-
-              <div
-                className="contact-info"
-                style={{ fontSize: 16, marginTop: 8, display: 'grid', gap: 6, lineHeight: 1.45 }}
-              >
-                {c.phone && (
-                  <div>
-                    <span>Phone: </span>
-                    <a href={telHref(c.phone)}>{c.phone}</a>
+                    <strong style={{ fontSize: 17 }}>{c.name}</strong>
+                    {c.url && (
+                      <a
+                        href={c.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ fontSize: 13, color: '#60a5fa', textDecoration: 'none' }}
+                      >
+                        Visit site ↗
+                      </a>
+                    )}
                   </div>
-                )}
-                {c.email && (
-                  <div>
-                    <span>Email: </span>
-                    <a href={`mailto:${c.email}`}>{c.email}</a>
-                  </div>
-                )}
-              </div>
 
-              <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-                {c.phone && <a href={telHref(c.phone)} style={BTN}>Call</a>}
-                {c.email && <a href={`mailto:${c.email}`} style={BTN}>Email</a>}
-                {c.url   && <a href={c.url} target="_blank" rel="noreferrer" style={BTN}>Website</a>}
-              </div>
-            </li>
-          ))}
-        </ul>
+                  <div
+                    className="contact-info"
+                    style={{
+                      fontSize: 14,
+                      marginTop: 8,
+                      display: 'grid',
+                      gap: 4,
+                      lineHeight: 1.45
+                    }}
+                  >
+                    {c.phone && (
+                      <div>
+                        <span>Phone: </span>
+                        <a href={telHref(c.phone)}>{c.phone}</a>
+                      </div>
+                    )}
+                    {c.email && (
+                      <div>
+                        <span>Email: </span>
+                        <a href={`mailto:${c.email}`}>{c.email}</a>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                    {c.phone && (
+                      <a href={telHref(c.phone)} style={BTN}>
+                        Call
+                      </a>
+                    )}
+                    {c.email && (
+                      <a href={`mailto:${c.email}`} style={BTN}>
+                        Email
+                      </a>
+                    )}
+                    {c.url && (
+                      <a href={c.url} target="_blank" rel="noreferrer" style={BTN}>
+                        Website
+                      </a>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </div>
-    );
-  };
+    </div>
+  );
+};
+
 
   const togglePinKeyLocal = (k) => setPinnedKeys(prev => {
     const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n;
@@ -1057,9 +1178,10 @@ const recommended = useMemo(() => {
 
       <div style={gridStyle}>
         {/* LEFT */}
-        <aside style={{ display: 'grid', gap: '1rem', fontSize: 15, lineHeight: 1.35 }}>
-          <ContactsCard />
-        </aside>
+<aside style={{ display: 'grid', gap: '1rem', fontSize: 15, lineHeight: 1.35 }}>
+  <ContactsCard campusPref={campusPref} />
+</aside>
+
 
         {/* RIGHT */}
 <main style={{ display: 'grid', gap: '1rem' }}>
