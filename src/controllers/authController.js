@@ -14,6 +14,11 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.FROM_EMAIL;
 
+// helper to generate a 6-digit code
+function generateResetCode() {
+  return String(Math.floor(100000 + Math.random() * 900000)); // "123456"
+}
+
 // For debugging at startup
 console.log("[email] Using Resend:", process.env.RESEND_API_KEY ? "API Key Loaded" : "MISSING");
 console.log("[email] FROM_EMAIL:", FROM_EMAIL);
@@ -320,4 +325,143 @@ exports.changePassword = async (req, res) => {
     console.error("Change password error:", err);
     return res.status(500).json({ message: "Error changing password" });
   }
+}
+
+// ------------------------------------------------------
+// FORGOT PASSWORD (send code)
+// ------------------------------------------------------
+exports.forgotPassword = async (req, res) => {
+  const { email } = req.body || {};
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required." });
+  }
+
+  try {
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const { rows } = await query(
+      "SELECT id, email FROM users WHERE email = $1",
+      [normalizedEmail]
+    );
+
+    // Always respond the same, even if user is missing
+    if (rows.length === 0) {
+      return res.json({
+        ok: true,
+        message: "If an account exists for this email, a reset code has been sent."
+      });
+    }
+
+    const code = generateResetCode();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    await query(
+      "UPDATE users SET reset_code = $1, reset_code_expires = $2, updated_at = NOW() WHERE email = $3",
+      [code, expiresAt.toISOString(), normalizedEmail]
+    );
+
+    // email via Resend
+    try {
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: normalizedEmail,
+        subject: "Your Sparely password reset code",
+        html: `
+          <p>You requested to reset your Sparely password.</p>
+          <p>Your code is:</p>
+          <p style="font-size: 20px; font-weight: 700; letter-spacing: 4px;">${code}</p>
+          <p>This code expires in 15 minutes. If you did not request this, you can ignore this email.</p>
+        `
+      });
+    } catch (mailErr) {
+      console.error("[forgotPassword] mail send error:", mailErr);
+      // Even if email fails, we don't reveal details to client
+    }
+
+    return res.json({
+      ok: true,
+      message: "If an account exists for this email, a reset code has been sent."
+    });
+  } catch (err) {
+    console.error("forgotPassword error:", err);
+    return res.status(500).json({ message: "Failed to start password reset." });
+  }
 };
+
+// ------------------------------------------------------
+// RESET PASSWORD (code + new password)
+// ------------------------------------------------------
+exports.resetPassword = async (req, res) => {
+  const { email, code, newPassword } = req.body || {};
+
+  if (!email || !code || !newPassword) {
+    return res
+      .status(400)
+      .json({ message: "Email, code, and new password are required." });
+  }
+
+  if (newPassword.length < 6) {
+    return res
+      .status(400)
+      .json({ message: "New password must be at least 6 characters." });
+  }
+
+  try {
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const codeTrimmed = String(code).trim();
+
+    const { rows } = await query(
+      "SELECT id, reset_code, reset_code_expires FROM users WHERE email = $1",
+      [normalizedEmail]
+    );
+
+    if (rows.length === 0) {
+      return res.status(400).json({ message: "Invalid email or code." });
+    }
+
+    const user = rows[0];
+
+    if (!user.reset_code || !user.reset_code_expires) {
+      return res
+        .status(400)
+        .json({ message: "No active reset request for this email." });
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(user.reset_code_expires);
+
+    if (now > expiresAt) {
+      return res.status(400).json({ message: "Reset code has expired." });
+    }
+
+    if (String(user.reset_code) !== codeTrimmed) {
+      return res.status(400).json({ message: "Invalid reset code." });
+    }
+
+    // all good – update password
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    await query(
+      `UPDATE users
+         SET password_hash = $1,
+             reset_code = NULL,
+             reset_code_expires = NULL,
+             updated_at = NOW()
+       WHERE email = $2`,
+      [hashed, normalizedEmail]
+    );
+
+    return res.json({
+      ok: true,
+      message: "Password reset successfully. You can now log in."
+    });
+  } catch (err) {
+    console.error("resetPassword error:", err);
+    return res.status(500).json({ message: "Failed to reset password." });
+  }
+};
+
+
+
+;

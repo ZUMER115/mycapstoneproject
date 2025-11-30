@@ -7,8 +7,8 @@ const {
   verifyEmail,
   updateEmail,
   changePassword,
-  forgotPassword,   // 👈 use the actual export name
-  resetPassword     // 👈 this one already exists in your controller
+  forgotPassword,   // ✅ matches authController exports
+  resetPassword     // ✅ matches authController exports
 } = require('../controllers/authController');
 
 const bcrypt = require('bcryptjs');
