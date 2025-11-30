@@ -316,9 +316,11 @@ const Dashboard = () => {
     navigate('/login');
   }
 
-  const [groupedView, setGroupedView] = useState(false);
-  const [includePast, setIncludePast] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+const [groupedView, setGroupedView] = useState(false);
+const [includePast, setIncludePast] = useState(false);
+const [rangeFilter, setRangeFilter] = useState('upcoming'); // 'today' | 'tomorrow' | 'week' | 'upcoming' | 'all'
+const [searchTerm, setSearchTerm] = useState('');
+
 
   const [miniSelectedDate, setMiniSelectedDate] = useState(null);
   const [miniSelectedItems, setMiniSelectedItems] = useState([]);
@@ -498,17 +500,39 @@ const Dashboard = () => {
     const iso = toISODateSafe(it.date || it.dateText || it.text || it.event);
     return iso ? new Date(iso + 'T00:00:00') : new Date('Invalid');
   };
-  const allAllowedSorted = allowedFiltered
-    .map(d => ({ d, t: getDate(d) }))
-    .filter(x => !isNaN(x.t))
-    .sort((a,b) => a.t - b.t)
-    .map(x => x.d);
+const allAllowedSorted = allowedFiltered
+  .map(d => ({ d, t: getDate(d) }))
+  .filter(x => !isNaN(x.t))
+  .sort((a,b) => a.t - b.t)
+  .map(x => x.d);
 
-  const firstUpcomingIdx = allAllowedSorted.findIndex(it => getDate(it) >= todayStart);
-  const upcomingOnly     = allAllowedSorted.filter(it => getDate(it) >= todayStart);
+const firstUpcomingIdx = allAllowedSorted.findIndex(it => getDate(it) >= todayStart);
 
-  // includePast toggle only; no rangeFilter now
-  const filteredDeadlines = includePast ? allAllowedSorted : upcomingOnly;
+// Apply chips + includePast
+const filteredDeadlines = allAllowedSorted.filter((it) => {
+  const iso = toISODateSafe(it.date || it.dateText || it.text || it.event);
+  if (!iso) return false;
+  const diff = daysUntil(iso); // days from today (0=today, 1=tomorrow, etc.)
+
+  // If not including past, hide anything before today
+  if (!includePast && diff < 0) return false;
+
+  switch (rangeFilter) {
+    case 'today':
+      return diff === 0;
+    case 'tomorrow':
+      return diff === 1;
+    case 'week':
+      return diff >= 0 && diff <= 6;
+    case 'upcoming':
+      // "Upcoming" = today and future only
+      return diff >= 0;
+    case 'all':
+    default:
+      // "Everything" respects includePast toggle
+      return includePast ? true : diff >= 0;
+  }
+});
 
   const grouped = filteredDeadlines.reduce((acc, item) => {
     const cat = (item.category || 'other').toLowerCase();
@@ -567,14 +591,15 @@ const Dashboard = () => {
     return set;
   }, [pinnedScraped, pinnedPersonal]);
 
-  const recommended = useMemo(() => {
-    return computeRecommendedDeadlines({
-      allItems: allAllowedSorted,
-      pinnedCats: pinnedCategorySet,
-      excludeKeys: pinnedScrKeySet,
-      target: RECO_TARGET,
-    });
-  }, [allAllowedSorted, pinnedCategorySet, pinnedScrKeySet]);
+const recommended = useMemo(() => {
+  return computeRecommendedDeadlines({
+    allItems: filteredDeadlines,
+    pinnedCats: pinnedCategorySet,
+    excludeKeys: pinnedScrKeySet,
+    target: RECO_TARGET,
+  });
+}, [filteredDeadlines, pinnedCategorySet, pinnedScrKeySet]);
+
 
   const dayAgg = useMemo(() => {
     const agg = {};
@@ -1037,12 +1062,75 @@ const Dashboard = () => {
         </aside>
 
         {/* RIGHT */}
-        <main style={{ display: 'grid', gap: '1rem' }}>
-          {/* Upcoming 4 Weeks */}
-          <div style={card}>
-            <h3 style={{ marginTop: 0 }}>Upcoming 4 Weeks</h3>
-            <UpcomingLoadChart items={filteredDeadlines} weeks={4} />
-          </div>
+<main style={{ display: 'grid', gap: '1rem' }}>
+
+  {/* Quick range chips */}
+  <div
+    style={{
+      display: 'flex',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8
+    }}
+  >
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+      <span style={{ fontSize: 13, color: '#6b7280' }}>Focus range:</span>
+      {[
+        { id: 'today',    label: 'Today' },
+        { id: 'tomorrow', label: 'Tomorrow' },
+        { id: 'week',     label: 'Next 7 days' },
+        { id: 'upcoming', label: 'All upcoming' },
+        { id: 'all',      label: 'Everything' }
+      ].map((opt) => (
+        <button
+          key={opt.id}
+          type="button"
+          onClick={() => setRangeFilter(opt.id)}
+          style={{
+            padding: '4px 10px',
+            borderRadius: 999,
+            border:
+              rangeFilter === opt.id
+                ? '1px solid #4f46e5'
+                : '1px solid rgba(148,163,184,0.6)',
+            background:
+              rangeFilter === opt.id
+                ? 'rgba(79,70,229,0.1)'
+                : 'transparent',
+            fontSize: 13,
+            cursor: 'pointer'
+          }}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+
+    <label
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 13,
+        color: '#6b7280'
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={includePast}
+        onChange={(e) => setIncludePast(e.target.checked)}
+      />
+      Include past deadlines
+    </label>
+  </div>
+
+  {/* Upcoming 4 Weeks */}
+  <div style={card}>
+    <h3 style={{ marginTop: 0 }}>Upcoming 4 Weeks</h3>
+    <UpcomingLoadChart items={filteredDeadlines} weeks={4} />
+  </div>
+
 
           {/* Pinned (personal auto + any pinned scraped) */}
           {pinnedItems.length > 0 && (
