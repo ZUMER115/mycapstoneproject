@@ -7,8 +7,8 @@ const {
   verifyEmail,
   updateEmail,
   changePassword,
-  forgotPassword,     // ⬅️ NEW
-  resetPassword       // ⬅️ NEW
+  forgotPassword,   // 👈 use the actual export name
+  resetPassword     // 👈 this one already exists in your controller
 } = require('../controllers/authController');
 
 const bcrypt = require('bcryptjs');
@@ -20,15 +20,14 @@ router.post('/register', register);
 router.post('/login', login);
 router.get('/verify', verifyEmail);
 
-// Forgot / Reset password (no auth required)
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
+// Forgot password flow (2-step: send code, then reset with email+code)
+router.post('/forgot-password', forgotPassword);  // step 1: send code
+router.post('/reset-password', resetPassword);    // step 2: code + new password
 
 // Protected profile actions
 router.put('/email', authMiddleware, updateEmail);
 
-// 🔧 CHANGE THIS LINE
-// router.put('/password', authMiddleware, changePassword);
+// Change password when already logged in
 router.post('/change-password', authMiddleware, changePassword);
 
 /* ---------- DEMO LOGIN (temporary) ---------- */
