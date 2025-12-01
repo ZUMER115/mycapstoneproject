@@ -386,88 +386,129 @@ function inferCampusKey(item, campusPref) {
  * Given a category + campus, return a suggested resource link.
  * You can update URLs later if you want exact pages.
  */
+/**
+ * Given a category + campus, return suggested resource links.
+ * Returns: { description: string, links: [{ label, href }] } | null
+ */
 function getResourceLinkForItem(item, campusPref) {
   const category = (item?.category || '').toLowerCase();
   const title = (item?.event || item?.title || '').toLowerCase();
   const campusKey = inferCampusKey(item, campusPref);
 
-  // Canvas
+  // Canvas deadlines: always Canvas
   if (category === 'canvas' || title.includes('canvas')) {
     return {
-      label: 'Open Canvas',
-      href: 'https://canvas.uw.edu/',
-      description: 'Canvas homepage for UW courses.'
+      description: 'Open Canvas to view or manage this assignment.',
+      links: [
+        {
+          label: 'Open Canvas',
+          href: 'https://canvas.uw.edu/'
+        }
+      ]
     };
   }
 
   // Personal events → no automatic resource
   if (category === 'personal') return null;
 
-  // Registration
-  if (category === 'registration' || title.includes('registration')) {
-    if (campusKey === 'uwb') {
-      return {
-        label: 'UW Bothell Registration',
-        href: 'https://www.uwb.edu/registration/',
-        description: 'Registration & enrollment information for UW Bothell.'
-      };
-    }
-    if (campusKey === 'uwt') {
-      return {
-        label: 'UW Tacoma Registration',
-        href: 'https://www.tacoma.uw.edu/registrar',
-        description: 'Registration and records at UW Tacoma.'
-      };
-    }
-    // default / Seattle
+  // Helper for MyPlan/MyUW combos
+  const regLinks = [
+    { label: 'MyPlan', href: 'https://myplan.uw.edu/' },
+    { label: 'MyUW', href: 'https://my.uw.edu/' }
+  ];
+
+  // === Add/Drop ===
+  if (category === 'add/drop' || title.includes('add/drop')) {
+    // All campuses use MyPlan for add/drop planning
     return {
-      label: 'UW Registration',
-      href: 'https://registrar.washington.edu/registration/',
-      description: 'Registration resources for UW students.'
+      description: 'Use MyPlan to adjust your schedule around add/drop deadlines.',
+      links: [{ label: 'MyPlan', href: 'https://myplan.uw.edu/' }]
     };
   }
 
-  // Financial Aid
+  // === Financial Aid ===
   if (category === 'financial-aid' || title.includes('financial')) {
     if (campusKey === 'uwb') {
       return {
-        label: 'UW Bothell Financial Aid',
-        href: 'https://www.uwb.edu/financialaid/',
-        description: 'Financial aid office for UW Bothell.'
+        description: 'Financial aid information for UW Bothell.',
+        links: [
+          {
+            label: 'UW Bothell Financial Aid',
+            href: 'https://www.uwb.edu/financial-aid/'
+          }
+        ]
       };
     }
     if (campusKey === 'uwt') {
       return {
-        label: 'UW Tacoma Financial Aid',
-        href: 'https://www.tacoma.uw.edu/financial-aid/',
-        description: 'Financial aid resources at UW Tacoma.'
+        description: 'Financial aid information for UW Tacoma.',
+        links: [
+          {
+            label: 'UW Tacoma Financial Aid',
+            href: 'https://www.tacoma.uw.edu/finaid'
+          }
+        ]
       };
     }
+    // Default / UW Seattle
     return {
-      label: 'UW Financial Aid',
-      href: 'https://www.washington.edu/financialaid/',
-      description: 'Financial aid information for UW Seattle.'
+      description: 'Financial aid information for UW Seattle.',
+      links: [
+        {
+          label: 'UW Seattle Financial Aid',
+          href: 'https://www.washington.edu/financialaid/applying-for-aid/'
+        }
+      ]
     };
   }
 
-  // Add/Drop
-  if (category === 'add/drop' || title.includes('add/drop')) {
+  // === Registration ===
+  if (category === 'registration' || title.includes('registration')) {
+    // All campuses: MyPlan + MyUW
     return {
-      label: 'UW Important Dates & Deadlines',
-      href: 'https://www.washington.edu/students/reg/calendar.html',
-      description: 'Quarterly academic calendar including add/drop dates.'
+      description:
+        'Use MyPlan to plan your courses and MyUW to manage your registration and schedule.',
+      links: regLinks
     };
   }
 
-  // Academic / generic
+  // === Academic / Advising ===
   if (category === 'academic' || title.includes('quarter')) {
+    if (campusKey === 'uwb') {
+      return {
+        description: 'Academic advising and planning resources for UW Bothell.',
+        links: [
+          {
+            label: 'UW Bothell Advising',
+            href: 'https://www.uwb.edu/advising/'
+          }
+        ]
+      };
+    }
+    if (campusKey === 'uwt') {
+      return {
+        description: 'Academic advising and planning resources for UW Tacoma.',
+        links: [
+          {
+            label: 'UW Tacoma Advising',
+            href: 'https://www.tacoma.uw.edu/advising'
+          }
+        ]
+      };
+    }
+    // Default / UW Seattle
     return {
-      label: 'UW Academic Calendar',
-      href: 'https://www.washington.edu/students/reg/calendar.html',
-      description: 'Academic calendar for all UW campuses.'
+      description: 'Academic advising and planning resources for UW Seattle.',
+      links: [
+        {
+          label: 'UW Seattle Advising',
+          href: 'https://advising.uw.edu/'
+        }
+      ]
     };
   }
 
+  // Fallback: nothing special
   return null;
 }
 
@@ -878,54 +919,91 @@ const Dashboard = () => {
     padding: '1rem'
   };
 
-  // Campus-specific contact sets.
-  const CAMPUS_CONTACTS = {
-    uwb: [
-      {
-        name: 'Financial Aid (Bothell)',
-        phone: '425-352-5240',
-        email: 'uwbfaid@uw.edu'
-      },
-      {
-        name: 'Registration (Bothell)',
-        phone: '425-352-5000',
-        email: 'uwbreg@uw.edu'
-      },
-      {
-        name: 'Admissions (Bothell)',
-        phone: '425-352-5000',
-        email: 'uwbinfo@uw.edu'
-      },
-      {
-        name: 'Academic Advising (Bothell)',
-        phone: null,
-        email: 'uwbadvis@uw.edu',
-        url: 'https://www.uwb.edu/advising/'
-      }
-    ],
-    uws: [
-      {
-        name: 'UW Seattle – Student Services',
-        phone: null,
-        email: null,
-        url: 'https://www.washington.edu/'
-      },
-      {
-        name: 'UW Seattle – Advising',
-        phone: null,
-        email: null,
-        url: 'https://www.washington.edu/uaa/advising/'
-      }
-    ],
-    uwt: [
-      {
-        name: 'UW Tacoma – Student Services',
-        phone: null,
-        email: null,
-        url: 'https://www.tacoma.uw.edu/'
-      }
-    ]
-  };
+// Campus-specific contact sets.
+const CAMPUS_CONTACTS = {
+  // UW Bothell contacts (you said these are fine as-is)
+  uwb: [
+    {
+      name: 'Financial Aid (Bothell)',
+      phone: '425-352-5240',
+      email: 'uwbfaid@uw.edu'
+      // website left as-is or null; user said Bothell contacts are fine
+    },
+    {
+      name: 'Registration (Bothell)',
+      phone: '425-352-5000',
+      email: 'uwbreg@uw.edu'
+    },
+    {
+      name: 'Admissions (Bothell)',
+      phone: '425-352-5000',
+      email: 'uwbinfo@uw.edu'
+    },
+    {
+      name: 'Academic Advising (Bothell)',
+      phone: null,
+      email: 'uwbadvis@uw.edu',
+      url: 'https://www.uwb.edu/advising/'
+    }
+  ],
+
+  // UW Seattle contacts – now aligned with your URLs
+  uws: [
+    {
+      name: 'Academic Advising (Seattle)',
+      phone: null,
+      email: null,
+      url: 'https://advising.uw.edu/'
+    },
+    {
+      name: 'Registration – MyPlan',
+      phone: null,
+      email: null,
+      url: 'https://myplan.uw.edu/'
+    },
+    {
+      name: 'Registration – MyUW',
+      phone: null,
+      email: null,
+      url: 'https://my.uw.edu/'
+    },
+    {
+      name: 'Financial Aid (Seattle)',
+      phone: null,
+      email: null,
+      url: 'https://www.washington.edu/financialaid/applying-for-aid/'
+    }
+  ],
+
+  // UW Tacoma contacts – now aligned with your URLs
+  uwt: [
+    {
+      name: 'Academic Advising (Tacoma)',
+      phone: null,
+      email: null,
+      url: 'https://www.tacoma.uw.edu/advising'
+    },
+    {
+      name: 'Registration – MyPlan (Tacoma)',
+      phone: null,
+      email: null,
+      url: 'https://myplan.uw.edu/'
+    },
+    {
+      name: 'Registration – MyUW (Tacoma)',
+      phone: null,
+      email: null,
+      url: 'https://my.uw.edu/'
+    },
+    {
+      name: 'Financial Aid (Tacoma)',
+      phone: null,
+      email: null,
+      url: 'https://www.tacoma.uw.edu/finaid'
+    }
+  ]
+};
+
 
   const telHref = (s) => `tel:${String(s).replace(/[^\d+]/g, '')}`;
 
@@ -2344,55 +2422,67 @@ const Dashboard = () => {
                       </div>
                     )}
 
-                    {resource && (
-                      <div
-                        style={{
-                          marginTop: 6,
-                          paddingTop: 8,
-                          borderTop:
-                            '1px dashed rgba(148,163,184,0.6)'
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: '#9ca3af',
-                            marginBottom: 4
-                          }}
-                        >
-                          Suggested resource:
-                        </div>
-                        <p
-                          style={{
-                            fontSize: 13,
-                            margin: '0 0 6px 0',
-                            color: '#e5e7eb'
-                          }}
-                        >
-                          {resource.description}
-                        </p>
-                        <a
-                          href={resource.href}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            fontSize: 13,
-                            padding: '6px 10px',
-                            borderRadius: 999,
-                            border: '1px solid #4f46e5',
-                            textDecoration: 'none',
-                            color: '#e5e7eb',
-                            background:
-                              'rgba(79,70,229,0.16)'
-                          }}
-                        >
-                          {resource.label} ↗
-                        </a>
-                      </div>
-                    )}
+{resource && (
+  <div
+    style={{
+      marginTop: 6,
+      paddingTop: 8,
+      borderTop: '1px dashed rgba(148,163,184,0.6)'
+    }}
+  >
+    <div
+      style={{
+        fontSize: 12,
+        color: '#9ca3af',
+        marginBottom: 4
+      }}
+    >
+      Suggested resource{resource.links?.length > 1 ? 's' : ''}:
+    </div>
+    {resource.description && (
+      <p
+        style={{
+          fontSize: 13,
+          margin: '0 0 6px 0',
+          color: '#e5e7eb'
+        }}
+      >
+        {resource.description}
+      </p>
+    )}
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 8
+      }}
+    >
+      {(resource.links || []).map((link, idx) => (
+        <a
+          key={link.href + idx}
+          href={link.href}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 13,
+            padding: '6px 10px',
+            borderRadius: 999,
+            border: '1px solid #4f46e5',
+            textDecoration: 'none',
+            color: '#e5e7eb',
+            background: 'rgba(79,70,229,0.16)'
+          }}
+        >
+          {link.label} ↗
+        </a>
+      ))}
+    </div>
+  </div>
+)}
+
 
                     {!resource && (
                       <div
