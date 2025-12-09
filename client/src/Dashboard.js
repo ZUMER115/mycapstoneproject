@@ -2458,26 +2458,28 @@ const CAMPUS_CONTACTS = {
       }}
     >
       {(resource.links || []).map((link, idx) => (
-        <a
-          key={link.href + idx}
-          href={link.href}
-          target="_blank"
-          rel="noreferrer"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 13,
-            padding: '6px 10px',
-            borderRadius: 999,
-            border: '1px solid #4f46e5',
-            textDecoration: 'none',
-            color: '#e5e7eb',
-            background: 'rgba(79,70,229,0.16)'
-          }}
-        >
-          {link.label} ↗
-        </a>
+<a
+  key={link.href + idx}
+  href={link.href}
+  target="_blank"
+  rel="noreferrer"
+  style={{
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    fontSize: 13,
+    padding: '6px 10px',
+    borderRadius: 999,
+    border: '1px solid #4f46e5',
+    textDecoration: 'none',
+    color: '#111827',                   // 🔹 dark, readable text
+    background: 'rgba(79,70,229,0.16)', // you can keep this
+    fontWeight: 600                     // optional: makes it pop a bit more
+  }}
+>
+  {link.label} ↗
+</a>
+
       ))}
     </div>
   </div>
