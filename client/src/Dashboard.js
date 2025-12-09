@@ -2444,7 +2444,7 @@ const CAMPUS_CONTACTS = {
         style={{
           fontSize: 13,
           margin: '0 0 6px 0',
-          color: '#e5e7eb'
+          color: '#111827'
         }}
       >
         {resource.description}
