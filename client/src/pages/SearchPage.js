@@ -78,6 +78,13 @@ const PIN_BADGE_STYLE = {
   textAlign: 'center'
 };
 
+// 🔹 Helper to detect Canvas items (by category or title)
+const isCanvasItem = (item) => {
+  const cat = (item?.category || '').toLowerCase();
+  const title = (item?.event || item?.title || '').toLowerCase();
+  return cat === 'canvas' || title.includes('canvas');
+};
+
 // stable key
 const keyForScraped = (item) => {
   const iso = toISODateSafe(item.date || item.dateText || item.text || item.event) || '';
@@ -130,6 +137,169 @@ function smoothScrollTo(container, target, duration = 600) {
 // canonical categories
 const CANONICAL_CATS = ['registration', 'academic', 'financial-aid', 'add/drop', 'other'];
 
+/* ===== campus + resource helpers (mirroring Dashboard) ===== */
+
+function inferCampusKey(item, campusHint) {
+  const raw =
+    (item && (item.campus || item.campusCode || item.campus_name)) || '';
+  const s = String(raw).toLowerCase();
+
+  if (s.includes('bothell') || s === 'uwb') return 'uwb';
+  if (s.includes('seattle') || s === 'uws') return 'uws';
+  if (s.includes('tacoma') || s === 'uwt') return 'uwt';
+
+  if (campusHint === 'uwb' || campusHint === 'uws' || campusHint === 'uwt') {
+    return campusHint;
+  }
+  return null;
+}
+
+/**
+ * Given a category + campus, return suggested resource links.
+ * Returns: { description: string, links: [{ label, href }] } | null
+ */
+function getResourceLinkForItem(item, campusHint) {
+  const category = (item?.category || '').toLowerCase();
+  const title = (item?.event || item?.title || '').toLowerCase();
+  const campusKey = inferCampusKey(item, campusHint);
+
+  // Canvas deadlines: always Canvas
+  if (isCanvasItem(item)) {
+    return {
+      description: 'Open Canvas to view or manage this assignment.',
+      links: [
+        {
+          label: 'Open Canvas',
+          href: 'https://canvas.uw.edu/'
+        }
+      ]
+    };
+  }
+
+  // Personal / misc → no automatic resource
+  if (category === 'personal') return null;
+
+  // Helper for MyPlan/MyUW combos
+  const regLinks = [
+    { label: 'MyPlan', href: 'https://myplan.uw.edu/' },
+    { label: 'MyUW', href: 'https://my.uw.edu/' }
+  ];
+
+  // === Add/Drop ===
+  if (category === 'add/drop' || title.includes('add/drop')) {
+    return {
+      description: 'Use MyPlan to adjust your schedule around add/drop deadlines.',
+      links: [{ label: 'MyPlan', href: 'https://myplan.uw.edu/' }]
+    };
+  }
+
+  // === Financial Aid ===
+  if (category === 'financial-aid' || title.includes('financial')) {
+    if (campusKey === 'uwb') {
+      return {
+        description: 'Financial aid information for UW Bothell.',
+        links: [
+          {
+            label: 'UW Bothell Financial Aid',
+            href: 'https://www.uwb.edu/financial-aid/'
+          }
+        ]
+      };
+    }
+    if (campusKey === 'uwt') {
+      return {
+        description: 'Financial aid information for UW Tacoma.',
+        links: [
+          {
+            label: 'UW Tacoma Financial Aid',
+            href: 'https://www.tacoma.uw.edu/finaid'
+          }
+        ]
+      };
+    }
+    // Default / UW Seattle
+    return {
+      description: 'Financial aid information for UW Seattle.',
+      links: [
+        {
+          label: 'UW Seattle Financial Aid',
+          href: 'https://www.washington.edu/financialaid/applying-for-aid/'
+        }
+      ]
+    };
+  }
+
+  // === Registration ===
+  if (category === 'registration' || title.includes('registration')) {
+    return {
+      description:
+        'Use MyPlan to plan your courses and MyUW to manage your registration and schedule.',
+      links: regLinks
+    };
+  }
+
+  // === Academic / Advising ===
+  if (category === 'academic' || title.includes('quarter')) {
+    if (campusKey === 'uwb') {
+      return {
+        description: 'Academic advising and planning resources for UW Bothell.',
+        links: [
+          {
+            label: 'UW Bothell Advising',
+            href: 'https://www.uwb.edu/advising/'
+          }
+        ]
+      };
+    }
+    if (campusKey === 'uwt') {
+      return {
+        description: 'Academic advising and planning resources for UW Tacoma.',
+        links: [
+          {
+            label: 'UW Tacoma Advising',
+            href: 'https://www.tacoma.uw.edu/advising'
+          }
+        ]
+      };
+    }
+    // Default / UW Seattle
+    return {
+      description: 'Academic advising and planning resources for UW Seattle.',
+      links: [
+        {
+          label: 'UW Seattle Advising',
+          href: 'https://advising.uw.edu/'
+        }
+      ]
+    };
+  }
+
+  return null;
+}
+
+/* timezone-safe display */
+const fmtDate = (d) => {
+  if (!d) return '';
+  const s = String(d).trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) {
+    const dt = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return dt.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  }
+  const dt = new Date(s);
+  return isNaN(dt)
+    ? s
+    : dt.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+};
+
 export default function SearchPage() {
   const [deadlines, setDeadlines] = useState([]);
   const [categoryFilters, setCategoryFilters] = useState({});
@@ -145,6 +315,9 @@ export default function SearchPage() {
   const [userEmail, setUserEmail] = useState('');
   // local campus filter for this page only
   const [campusSearchFilter, setCampusSearchFilter] = useState('all'); // 'all' | 'uwb' | 'uws' | 'uwt'
+
+  // detail popup state
+  const [detail, setDetail] = useState(null); // { item }
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -427,6 +600,9 @@ export default function SearchPage() {
     return 'All campuses';
   };
 
+  const openDetail = (item) => setDetail({ item });
+  const closeDetail = () => setDetail(null);
+
   return (
     <div
       style={{
@@ -450,7 +626,7 @@ export default function SearchPage() {
         }
         .deadline-row:focus-within {
           background: #e0f2fe;
-          box-shadow: 0 0 0 2px #60a5fa inset;
+          box-shadow: 0 0 0 2px #60f5fa inset;
         }
 
         .pin-toast {
@@ -489,6 +665,38 @@ export default function SearchPage() {
             grid-template-columns: minmax(0, 1fr);
           }
         }
+
+        .detail-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(15, 23, 42, 0.55);
+          z-index: 40;
+        }
+        .detail-card {
+          position: fixed;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justifyContent: center;
+          z-index: 41;
+          pointer-events: none;
+        }
+        .detail-inner {
+          pointer-events: auto;
+          max-width: 480px;
+          width: 100%;
+          margin: 1.5rem;
+          background: var(--widget-bg, #020617);
+          border-radius: 12px;
+          border: 1px solid rgba(148,163,184,0.55);
+          padding: 1.25rem 1.5rem;
+          box-shadow: 0 18px 45px rgba(15,23,42,0.6);
+          animation: fadeInScale .16s ease-out;
+        }
+        @keyframes fadeInScale {
+          from { opacity: 0; transform: scale(.96); }
+          to   { opacity: 1; transform: scale(1); }
+        }
       `}</style>
 
       {toastMsg && (
@@ -525,7 +733,8 @@ export default function SearchPage() {
                 borderRadius:6,
                 border:'1px solid #d1d5db',
                 background:'#ffffff',
-                color:'#111827'
+                color:'#111827',
+                boxSizing:'border-box'   // 🔹 keeps it slightly shorter / inside the card
               }}
             />
           </div>
@@ -764,8 +973,10 @@ export default function SearchPage() {
                         display: 'flex',
                         gap: '0.75rem',
                         alignItems: 'center',
-                        justifyContent: 'space-between'
+                        justifyContent: 'space-between',
+                        cursor: 'pointer'
                       }}
+                      onClick={() => openDetail(item)}
                     >
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{ display:'flex', alignItems:'baseline', gap:8, minWidth:0 }}>
@@ -815,7 +1026,10 @@ export default function SearchPage() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => togglePinKey(k)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePinKey(k);
+                          }}
                           style={PIN_BADGE_STYLE}
                           title={isPinned ? 'Unpin' : 'Pin'}
                         >
@@ -832,6 +1046,204 @@ export default function SearchPage() {
           </div>
         </section>
       </div>
+
+      {/* ==== DEADLINE DETAIL POPUP ==== */}
+      {detail && (
+        <>
+          <div className="detail-backdrop" onClick={closeDetail} />
+          <div className="detail-card">
+            <div className="detail-inner">
+              {(() => {
+                const item = detail.item || {};
+                const category = (item.category || '').toLowerCase();
+                const title = item.event || item.title || 'Untitled';
+                const dateIso =
+                  toISODateSafe(
+                    item.date ||
+                    item.dateText ||
+                    item.text ||
+                    item.start ||
+                    item.event
+                  ) || null;
+                const notes =
+                  item.notes ||
+                  item.description ||
+                  item.details ||
+                  '';
+                const resource = getResourceLinkForItem(
+                  item,
+                  campusSearchFilter
+                );
+
+                return (
+                  <>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 10
+                      }}
+                    >
+                      <div>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.08em',
+                            color: '#9ca3af',
+                            marginBottom: 2
+                          }}
+                        >
+                          Deadline
+                        </div>
+                        <h3
+                          style={{
+                            margin: 0,
+                            fontSize: '1.1rem'
+                          }}
+                        >
+                          {title}
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={closeDetail}
+                        style={{
+                          border: 'none',
+                          background: 'transparent',
+                          fontSize: 20,
+                          cursor: 'pointer',
+                          color: '#9ca3af'
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 8,
+                        alignItems: 'center',
+                        marginBottom: 10
+                      }}
+                    >
+                      <span
+                        style={{
+                          textTransform: 'capitalize',
+                          fontSize: 12,
+                          padding: '3px 9px',
+                          borderRadius: 999,
+                          border: '1px solid rgba(148,163,184,0.7)',
+                          background: isCanvasItem(item)
+                            ? 'rgba(139,92,246,0.12)'
+                            : 'transparent'
+                        }}
+                      >
+                        {category || 'other'}
+                      </span>
+                      {dateIso && (
+                        <span style={DATE_BADGE_STYLE}>
+                          {fmtDate(dateIso)}
+                        </span>
+                      )}
+                    </div>
+
+                    {notes && (
+                      <div
+                        style={{
+                          marginBottom: 10,
+                          fontSize: 14,
+                          whiteSpace: 'pre-wrap',
+                          color: '#e5e7eb'
+                        }}
+                      >
+                        {notes}
+                      </div>
+                    )}
+
+                    {resource && (
+                      <div
+                        style={{
+                          marginTop: 6,
+                          paddingTop: 8,
+                          borderTop: '1px dashed rgba(148,163,184,0.6)'
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: '#9ca3af',
+                            marginBottom: 4
+                          }}
+                        >
+                          Suggested resource{resource.links?.length > 1 ? 's' : ''}:
+                        </div>
+                        {resource.description && (
+                          <p
+                            style={{
+                              fontSize: 13,
+                              margin: '0 0 6px 0',
+                              color: '#e5e7eb'
+                            }}
+                          >
+                            {resource.description}
+                          </p>
+                        )}
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: 8
+                          }}
+                        >
+                          {(resource.links || []).map((link, idx) => (
+                            <a
+                              key={link.href + idx}
+                              href={link.href}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                fontSize: 13,
+                                padding: '6px 10px',
+                                borderRadius: 999,
+                                border: '1px solid #4f46e5',
+                                textDecoration: 'none',
+                                color: '#111827',  // 🔹 dark text for readability
+                                background: 'rgba(79,70,229,0.16)',
+                                fontWeight: 600
+                              }}
+                            >
+                              {link.label} ↗
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {!resource && (
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: '#6b7280',
+                          marginTop: 6
+                        }}
+                      >
+                        No automatic resource link for this item.
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
