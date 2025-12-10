@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-const Register = ({ onRegister }) => {
+const Register = () => {                     // ⬅️ dropped onRegister, no auto-login here
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -35,12 +35,21 @@ const Register = ({ onRegister }) => {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+
       if (res.ok) {
         setStatus('success');
-        setMessage('Account created! You can now sign in.');
-        // Optional: if you ever return a token, you can auto-login:
-        if (onRegister && data.token) onRegister(data.token);
+        // 🔑 KEY CHANGE: message now tells user to verify email first
+        setMessage(
+          data.message ||
+            'Account created. Check your email to verify your account before signing in.'
+        );
+
+        // optional: clear sensitive fields
+        setPassword('');
+        setConfirm('');
+        // ⛔️ NO auto-login from register.
+        // if (onRegister && data.token) onRegister(data.token);  // removed
       } else {
         setStatus('error');
         setMessage(data.message || 'Registration failed');
@@ -192,7 +201,9 @@ const Register = ({ onRegister }) => {
 
         <form onSubmit={handleRegister} style={card} noValidate>
           <h1 style={title}>Create your account</h1>
-          <p style={sub}>It only takes a moment to get started.</p>
+          <p style={sub}>
+            It only takes a moment. Then check your email to verify before signing in.
+          </p>
 
           <div style={{ display: 'grid', gap: 14, marginTop: 22 }}>
             {/* Email */}
@@ -260,7 +271,7 @@ const Register = ({ onRegister }) => {
 
             {/* Footer */}
             <div className="auth-footer">
-              Already have an account? <Link to="/">Sign in</Link>
+              Already have an account? <Link to="/login">Sign in</Link>
             </div>
           </div>
         </form>
