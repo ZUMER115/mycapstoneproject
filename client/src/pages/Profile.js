@@ -11,6 +11,8 @@ export default function Profile() {
   const [theme, setTheme] = useState('light');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
 
   // account-related state
   const [updatingEmail, setUpdatingEmail] = useState(false);
@@ -77,11 +79,13 @@ export default function Profile() {
   const ltd = Number(p.lead_time_days ?? 3);
   const thm = p.theme || 'light';
   const campus = p.campus_preference || 'uwb'; // 👈 NEW
+  const notif = p.notifications_enabled;
 
   setLeadTimeDays(clampLead(ltd));
   setTheme(thm);
   applyTheme(thm);
   setCampusPref(campus); // 👈 NEW
+  setNotificationsEnabled(notif !== false);
 })
 
         .catch(() => {})
@@ -108,6 +112,7 @@ body: JSON.stringify({
   lead_time_days: clampLead(leadTimeDays),
   theme,
   campus_preference: campusPref, // 👈 NEW
+  notifications_enabled: notificationsEnabled,
 })
       });
 
@@ -124,12 +129,13 @@ body: JSON.stringify({
 const storedLead = Number(data.lead_time_days ?? leadTimeDays);
 const storedTheme = data.theme || theme;
 const storedCampus = data.campus_preference || campusPref; // 👈 NEW
+const storedNotif = data.notifications_enabled; 
 
 setLeadTimeDays(clampLead(storedLead));
 setTheme(storedTheme);
 applyTheme(storedTheme);
 setCampusPref(storedCampus); // 👈 NEW
-
+setNotificationsEnabled(storedNotif !== false);
 
       setMsg({ type: 'ok', text: 'Preferences saved.' });
     } catch (e) {
@@ -543,41 +549,79 @@ const res = await fetch(`${API_BASE}/api/auth/email`, {
         </section>
 
         {/* Notifications */}
-        <section className={card}>
-          <h3 className="profile-section-title">Notifications</h3>
-          <p className="profile-section-sub">
-            Choose how many days <em>before a deadline</em> you want reminder emails.
-          </p>
+{/* Notifications */}
+<section className={card}>
+  <h3 className="profile-section-title">Notifications</h3>
+  <p className="profile-section-sub">
+    Turn daily email reminders on or off and choose how many days{' '}
+    <em>before a deadline</em> you want to hear about it.
+  </p>
 
-          <div style={{ display: 'grid', gap: 8, maxWidth: 360 }}>
-            <label
-              className={labelClass}
-              style={{
-                gridTemplateColumns: '1fr auto',
-                alignItems: 'center'
-              }}
-            >
-              <span>Lead time (days):</span>
-              <input
-                type="number"
-                min={0}
-                max={30}
-                step={1}
-                value={leadTimeDays}
-                onChange={(e) =>
-                  setLeadTimeDays(clampLead(parseInt(e.target.value, 10)))
-                }
-                className={inputClass}
-                style={{ width: 100 }}
-              />
-            </label>
+  <div style={{ display: 'grid', gap: 10, maxWidth: 380 }}>
+    {/* Master toggle */}
+    <label
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        fontSize: 14,
+        color: 'var(--text-main)',
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={notificationsEnabled}
+        onChange={(e) => setNotificationsEnabled(e.target.checked)}
+      />
+      <span>Enable email reminders</span>
+    </label>
 
-            <small style={{ color: 'var(--text-muted)' }}>
-              You’ll be alerted <strong>{leadTimeDays}</strong>{' '}
-              {leadTimeDays === 1 ? 'day' : 'days'} before each upcoming deadline.
-            </small>
-          </div>
-        </section>
+    {/* Lead time control (dim + disabled when off) */}
+    <div
+      style={{
+        display: 'grid',
+        gap: 6,
+        maxWidth: 360,
+        opacity: notificationsEnabled ? 1 : 0.5,
+      }}
+    >
+      <label
+        className={labelClass}
+        style={{
+          gridTemplateColumns: '1fr auto',
+          alignItems: 'center',
+        }}
+      >
+        <span>Lead time (days):</span>
+        <input
+          type="number"
+          min={0}
+          max={30}
+          step={1}
+          value={leadTimeDays}
+          onChange={(e) =>
+            setLeadTimeDays(clampLead(parseInt(e.target.value, 10)))
+          }
+          className={inputClass}
+          style={{ width: 100 }}
+          disabled={!notificationsEnabled}
+        />
+      </label>
+
+      <small style={{ color: 'var(--text-muted)' }}>
+        When enabled, Sparely emails you once per day showing pinned deadlines
+        due in the next <strong>{leadTimeDays}</strong>{' '}
+        {leadTimeDays === 1 ? 'day' : 'days'}.
+      </small>
+      {!notificationsEnabled && (
+        <small style={{ color: 'var(--text-muted)' }}>
+          Email reminders are currently <strong>turned off</strong>.
+        </small>
+      )}
+    </div>
+  </div>
+</section>
+
         {/* Campus Preference */}
 {/* Campus Preference */}
 <section className={card}>

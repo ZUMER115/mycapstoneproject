@@ -18,6 +18,13 @@ const toYMD = (d) => {
   return `${Y}-${M}-${D}`;
 };
 
+async function getUserSettings(email, overrideLeadDays) {
+  const pref = await UserPreference.findOne({ email }).lean();
+  const lead = Number(overrideLeadDays ?? pref?.lead_time_days ?? 3);
+  const enabled = pref?.notifications_enabled !== false; // default ON
+  return { lead, enabled };
+}
+
 const MONTHS = {
   january:0, jan:0, february:1, feb:1, march:2, mar:2, april:3, apr:3, may:4,
   june:5, jun:5, july:6, jul:6, august:7, aug:7, september:8, sep:8, sept:8,
@@ -70,10 +77,15 @@ function toISODateSafe(raw) {
 
 function inNextNDays(iso, n) {
   if (!iso) return false;
-  const today = new Date(); today.setHours(0,0,0,0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const d = new Date(`${iso}T00:00:00`);
-  const end = new Date(today); end.setDate(end.getDate() + n);
-  return d >= today && d < end;
+  const end = new Date(today);
+  end.setDate(end.getDate() + n);
+
+  // 🔹 inclusive end: from now up to N days from now (including that Nth day)
+  return d >= today && d <= end;
 }
 
 function formatListHTML(list) {
@@ -144,15 +156,44 @@ async function buildDigest(email, leadDays) {
 
 // --- public api ---
 async function previewForUser(email) {
-  const pref = await UserPreference.findOne({ email }).lean();
-  const lead = Number(pref?.lead_time_days ?? 3);
+  const { lead, enabled } = await getUserSettings(email);
+
+  if (!enabled) {
+    // Don’t compute or send anything if notifications are off
+    return {
+      email,
+      lead_time_days: lead,
+      notifications_enabled: false,
+      count: 0,
+      items: []
+    };
+  }
+
   const items = await buildDigest(email, lead);
-  return { email, lead_time_days: lead, count: items.length, items };
+  return {
+    email,
+    lead_time_days: lead,
+    notifications_enabled: true,
+    count: items.length,
+    items
+  };
 }
 
 async function sendForUser(email, overrideLeadDays) {
-  const pref = await UserPreference.findOne({ email }).lean();
-  const lead = Number(overrideLeadDays ?? pref?.lead_time_days ?? 3);
+  const { lead, enabled } = await getUserSettings(email, overrideLeadDays);
+
+  if (!enabled) {
+    // No email is sent when disabled
+    return {
+      ok: false,
+      email,
+      lead_time_days: lead,
+      notifications_enabled: false,
+      count: 0,
+      reason: 'notifications_disabled'
+    };
+  }
+
   const items = await buildDigest(email, lead);
 
   const html = `
@@ -179,9 +220,11 @@ async function sendForUser(email, overrideLeadDays) {
     ok: true,
     email,
     lead_time_days: lead,
+    notifications_enabled: true,
     count: items.length,
     resendId: data?.id ?? null
   };
 }
+
 
 module.exports = { previewForUser, sendForUser };

@@ -7,6 +7,8 @@ const userPreferenceSchema = new mongoose.Schema({
   bio:   { type: String, default: '' },
   notes: { type: String, default: '' },
   theme: { type: String, enum: ['light', 'dark'], default: 'light' },
+  notifications_enabled: { type: Boolean, default: true },
+
 
   campus_preference: {
     type: String,

@@ -18,6 +18,7 @@ router.get('/preferences/:email', async (req, res) => {
       notes: '',
       theme: 'light',
       campus_preference: 'uwb',
+      notifications_enabled: true,
     });
   }
   res.json(pref);
@@ -30,7 +31,15 @@ router.get('/preferences/:email', async (req, res) => {
  */
 // src/routes/preferences.js
 router.post('/preferences', async (req, res) => {
-  const { email, lead_time_days, bio, notes, theme, campus_preference } = req.body || {};
+  const {
+    email,
+    lead_time_days,
+    bio,
+    notes,
+    theme,
+    campus_preference,
+    notifications_enabled,       // 👈 NEW
+  } = req.body || {};
   if (!email) return res.status(400).json({ message: 'email required' });
 
   const update = {};
@@ -39,11 +48,17 @@ router.post('/preferences', async (req, res) => {
   if (notes !== undefined) update.notes = String(notes);
   if (theme !== undefined) update.theme = theme === 'dark' ? 'dark' : 'light';
 
-  // 🔥 campus preference
+  // campus preference
   if (campus_preference !== undefined) {
     const c = String(campus_preference);
-    const allowed = ['uwb', 'uws', 'uwt', 'all'];   // 👈 updated list
+    const allowed = ['uwb', 'uws', 'uwt', 'all'];
     update.campus_preference = allowed.includes(c) ? c : 'uwb';
+  }
+
+  // 🔹 notifications toggle
+  if (notifications_enabled !== undefined) {
+    // anything explicitly false is OFF; everything else is ON
+    update.notifications_enabled = notifications_enabled === false ? false : true;
   }
 
   const pref = await UserPreference.findOneAndUpdate(
