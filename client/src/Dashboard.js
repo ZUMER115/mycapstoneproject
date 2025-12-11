@@ -1388,7 +1388,7 @@ const CAMPUS_CONTACTS = {
             alignItems: 'center'
           }}
         >
-          <h3 style={{ marginTop: 0 }}>Recommended Deadlines</h3>
+          <h3 style={{ marginTop: 0 }}>Suggested Deadlines</h3>
           {onAddEvent && (
             <button
               type="button"
