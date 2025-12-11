@@ -385,7 +385,7 @@ const base = {
         backgroundColor: bg,
         borderColor: border,
         textColor: '#ffffff',
-extendedProps: {
+       extendedProps: {
   source: isCanvas ? 'canvas' : 'personal',
   mongoId: u._id || null,
   category: cat,
@@ -803,7 +803,7 @@ if (src === 'personal' || src === 'canvas') {
                 {selected.category}
               </span>
             </div>
-
+            
 <div className="event-line">
   <span className="event-label">Date:</span>
   <span>{selected.dateText}</span>
@@ -909,21 +909,15 @@ if (src === 'personal' || src === 'canvas') {
 
             <label style={{ display: 'block', marginTop: 8 }}>
               Title
-<input
-  type="text"
-  value={form.title}
-  onChange={(e) =>
-    setForm((f) => ({ ...f, title: e.target.value }))
-  }
-  required
-  style={{
-    width: '100%',
-    padding: 6,
-    marginTop: 4,
-    boxSizing: 'border-box'
-  }}
-/>
-
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, title: e.target.value }))
+                }
+                required
+                style={{ width: '100%', padding: 8, marginTop: 4 }}
+              />
             </label>
 
             <div
@@ -936,23 +930,26 @@ if (src === 'personal' || src === 'canvas') {
             >
               <label>
                 Start (YYYY-MM-DD)
-style={{
-  width: '100%',
-  padding: 6,
-  marginTop: 4,
-  boxSizing: 'border-box'
-}}
-
+                <input
+                  type="date"
+                  value={form.date}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, date: e.target.value }))
+                  }
+                  required
+                  style={{ width: '100%', padding: 8, marginTop: 4 }}
+                />
               </label>
               <label>
                 End (optional)
-style={{
-  width: '100%',
-  padding: 6,
-  marginTop: 4,
-  boxSizing: 'border-box'
-}}
-
+                <input
+                  type="date"
+                  value={form.endDate}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, endDate: e.target.value }))
+                  }
+                  style={{ width: '100%', padding: 8, marginTop: 4 }}
+                />
               </label>
             </div>
 
@@ -966,13 +963,13 @@ style={{
             >
               <label>
                 Category
-style={{
-  width: '100%',
-  padding: 6,
-  marginTop: 4,
-  boxSizing: 'border-box'
-}}
-
+                <select
+                  value={form.category}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, category: e.target.value }))
+                  }
+                  style={{ width: '100%', padding: 8, marginTop: 4 }}
+                >
                   <option value="personal">Personal</option>
                   <option value="registration">Registration</option>
                   <option value="add/drop">Add/Drop</option>
