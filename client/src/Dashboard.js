@@ -524,9 +524,8 @@ const Dashboard = () => {
     navigate('/login');
   }
 
-  const [groupedView, setGroupedView] = useState(false);
-  const [includePast, setIncludePast] = useState(false);
-  const [rangeFilter, setRangeFilter] = useState('upcoming'); // 'today' | 'tomorrow' | 'week' | 'upcoming' | 'all'
+const [groupedView, setGroupedView] = useState(false);
+const [rangeFilter, setRangeFilter] = useState('upcoming'); // 'today' | 'tomorrow' | 'week' | 'upcoming'
   const [searchTerm, setSearchTerm] = useState('');
 
   const [miniSelectedDate, setMiniSelectedDate] = useState(null);
@@ -748,30 +747,29 @@ const Dashboard = () => {
   );
 
   // Apply chips + includePast
-  const filteredDeadlines = allAllowedSorted.filter((it) => {
-    const iso = toISODateSafe(it.date || it.dateText || it.text || it.event);
-    if (!iso) return false;
-    const diff = daysUntil(iso); // days from today (0=today, 1=tomorrow, etc.)
+const filteredDeadlines = allAllowedSorted.filter((it) => {
+  const iso = toISODateSafe(it.date || it.dateText || it.text || it.event);
+  if (!iso) return false;
+  const diff = daysUntil(iso); // days from today (0=today, 1=tomorrow, etc.)
 
-    // If not including past, hide anything before today
-    if (!includePast && diff < 0) return false;
+  // Always hide past deadlines
+  if (diff < 0) return false;
 
-    switch (rangeFilter) {
-      case 'today':
-        return diff === 0;
-      case 'tomorrow':
-        return diff === 1;
-      case 'week':
-        return diff >= 0 && diff <= 6;
-      case 'upcoming':
-        // "Upcoming" = today and future only
-        return diff >= 0;
-      case 'all':
-      default:
-        // "Everything" respects includePast toggle
-        return includePast ? true : diff >= 0;
-    }
-  });
+  switch (rangeFilter) {
+    case 'today':
+      return diff === 0;
+    case 'tomorrow':
+      return diff === 1;
+    case 'week':
+      return diff >= 0 && diff <= 6;
+    case 'upcoming':
+    default:
+      // All upcoming = today and future
+      return diff >= 0;
+  }
+});
+
+
 
   const grouped = filteredDeadlines.reduce((acc, item) => {
     const cat = (item.category || 'other').toLowerCase();
@@ -889,14 +887,7 @@ const Dashboard = () => {
       ? 'UW Tacoma'
       : 'UW Bothell + UW Seattle + UW Tacoma';
 
-  useEffect(() => {
-    if (!includePast || groupedView) return;
-    if (firstUpcomingIdx < 0) return;
-    const el = listRef.current?.querySelector(
-      `[data-idx="${firstUpcomingIdx}"]`
-    );
-    if (el) el.scrollIntoView({ block: 'start' });
-  }, [includePast, groupedView, firstUpcomingIdx, filteredDeadlines]);
+
 
   /* ===== layout ===== */
   const pageStyle = {
@@ -1127,7 +1118,7 @@ const CAMPUS_CONTACTS = {
                             textDecoration: 'none'
                           }}
                         >
-                          Visit site ↗
+                          
                         </a>
                       )}
                     </div>
@@ -1706,13 +1697,12 @@ const CAMPUS_CONTACTS = {
               >
                 Focus range:
               </span>
-              {[
-                { id: 'today', label: 'Today' },
-                { id: 'tomorrow', label: 'Tomorrow' },
-                { id: 'week', label: 'Next 7 days' },
-                { id: 'upcoming', label: 'All upcoming' },
-                { id: 'all', label: 'Everything' }
-              ].map((opt) => (
+{[
+  { id: 'today', label: 'Today' },
+  { id: 'tomorrow', label: 'Tomorrow' },
+  { id: 'week', label: 'Next 7 days' },
+  { id: 'upcoming', label: 'All upcoming' }
+].map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
@@ -1737,22 +1727,22 @@ const CAMPUS_CONTACTS = {
               ))}
             </div>
 
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                fontSize: 13,
-                color: '#6b7280'
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={includePast}
-                onChange={(e) => setIncludePast(e.target.checked)}
-              />
-              Include past deadlines
-            </label>
+<label
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    fontSize: 13,
+    color: '#6b7280'
+  }}
+>
+  <input
+    type="checkbox"
+    checked={includePast}
+    onChange={(e) => setIncludePast(e.target.checked)}
+  />
+  Include past deadlines
+</label>
           </div>
 
           {/* Upcoming 4 Weeks */}
@@ -2477,7 +2467,7 @@ const CAMPUS_CONTACTS = {
     fontWeight: 600                     // optional: makes it pop a bit more
   }}
 >
-  {link.label} ↗
+  {link.label} 
 </a>
 
       ))}
