@@ -306,16 +306,18 @@ export default function CalendarPage() {
       const displayDate = displayRange(parsed.start, parsed.end);
       const isCanvas = source === 'canvas';
 
-      const base = {
-        title,
-        category,
-        dateText: displayDate,
-        _start: parsed.start,
-        _end: parsed.end,
-        pinned,
-        source,
-        url: item.url || null
-      };
+const base = {
+  title,
+  category,
+  dateText: displayDate,
+  _start: parsed.start,
+  _end: parsed.end,
+  pinned,
+  source,
+  url: item.url || null,
+  campus: item.campus || null        // 🔹 add this
+};
+
 
       const lastInclusive = new Date(parsed.end);
       lastInclusive.setDate(lastInclusive.getDate() - 1);
@@ -383,13 +385,15 @@ export default function CalendarPage() {
         backgroundColor: bg,
         borderColor: border,
         textColor: '#ffffff',
-        extendedProps: {
-          source: isCanvas ? 'canvas' : 'personal',
-          mongoId: u._id || null,
-          category: cat,
-          notes: u.notes || '',
-          url: u.url || null
-        }
+extendedProps: {
+  source: isCanvas ? 'canvas' : 'personal',
+  mongoId: u._id || null,
+  category: cat,
+  notes: u.notes || '',
+  url: u.url || null,
+  campus: u.campus || null           // 🔹 add this
+}
+
       };
     });
   }, [userEvents]);
@@ -687,23 +691,24 @@ export default function CalendarPage() {
           events={events}
           eventClick={(info) => {
             const src = info.event.extendedProps?.source;
-            if (src === 'personal' || src === 'canvas') {
-              const { category, notes, mongoId, url } =
-                info.event.extendedProps || {};
-              const start = new Date(info.event.start);
-              const end = new Date(info.event.end);
-              setSelected({
-                kind: src, // 'personal' or 'canvas'
-                mongoId: mongoId || null,
-                title: info.event.title,
-                category: category || src,
-                dateText: displayRange(start, end),
-                _start: start,
-                _end: end,
-                notes: notes || '',
-                url: url || null
-              });
-            } else {
+if (src === 'personal' || src === 'canvas') {
+  const { category, notes, mongoId, url, campus } =
+    info.event.extendedProps || {};
+  const start = new Date(info.event.start);
+  const end = new Date(info.event.end);
+  setSelected({
+    kind: src, // 'personal' or 'canvas'
+    mongoId: mongoId || null,
+    title: info.event.title,
+    category: category || src,
+    dateText: displayRange(start, end),
+    _start: start,
+    _end: end,
+    notes: notes || '',
+    url: url || null,
+    campus: campus || null          // 🔹 add this
+  });
+} else {
               const details = lookup.get(info.event.id);
               if (details) setSelected({ kind: 'scraped', ...details });
             }
@@ -799,17 +804,25 @@ export default function CalendarPage() {
               </span>
             </div>
 
-            <div className="event-line">
-              <span className="event-label">Date:</span>
-              <span>{selected.dateText}</span>
-            </div>
+<div className="event-line">
+  <span className="event-label">Date:</span>
+  <span>{selected.dateText}</span>
+</div>
 
-            {selected.notes ? (
-              <div className="event-line" style={{ marginTop: '.6rem' }}>
-                <span className="event-label">Notes:</span>
-                <span>{selected.notes}</span>
-              </div>
-            ) : null}
+{selected.campus && (
+  <div className="event-line">
+    <span className="event-label">Campus:</span>
+    <span>{selected.campus}</span>
+  </div>
+)}
+
+{selected.notes ? (
+  <div className="event-line" style={{ marginTop: '.6rem' }}>
+    <span className="event-label">Notes:</span>
+    <span>{selected.notes}</span>
+  </div>
+) : null}
+
 
             <div className="event-actions">
               {selected.kind === 'personal' && selected.mongoId ? (
@@ -896,15 +909,21 @@ export default function CalendarPage() {
 
             <label style={{ display: 'block', marginTop: 8 }}>
               Title
-              <input
-                type="text"
-                value={form.title}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, title: e.target.value }))
-                }
-                required
-                style={{ width: '100%', padding: 8, marginTop: 4 }}
-              />
+<input
+  type="text"
+  value={form.title}
+  onChange={(e) =>
+    setForm((f) => ({ ...f, title: e.target.value }))
+  }
+  required
+  style={{
+    width: '100%',
+    padding: 6,
+    marginTop: 4,
+    boxSizing: 'border-box'
+  }}
+/>
+
             </label>
 
             <div
@@ -917,26 +936,23 @@ export default function CalendarPage() {
             >
               <label>
                 Start (YYYY-MM-DD)
-                <input
-                  type="date"
-                  value={form.date}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, date: e.target.value }))
-                  }
-                  required
-                  style={{ width: '100%', padding: 8, marginTop: 4 }}
-                />
+style={{
+  width: '100%',
+  padding: 6,
+  marginTop: 4,
+  boxSizing: 'border-box'
+}}
+
               </label>
               <label>
                 End (optional)
-                <input
-                  type="date"
-                  value={form.endDate}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, endDate: e.target.value }))
-                  }
-                  style={{ width: '100%', padding: 8, marginTop: 4 }}
-                />
+style={{
+  width: '100%',
+  padding: 6,
+  marginTop: 4,
+  boxSizing: 'border-box'
+}}
+
               </label>
             </div>
 
@@ -950,13 +966,13 @@ export default function CalendarPage() {
             >
               <label>
                 Category
-                <select
-                  value={form.category}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, category: e.target.value }))
-                  }
-                  style={{ width: '100%', padding: 8, marginTop: 4 }}
-                >
+style={{
+  width: '100%',
+  padding: 6,
+  marginTop: 4,
+  boxSizing: 'border-box'
+}}
+
                   <option value="personal">Personal</option>
                   <option value="registration">Registration</option>
                   <option value="add/drop">Add/Drop</option>
