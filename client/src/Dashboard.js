@@ -1727,22 +1727,7 @@ const CAMPUS_CONTACTS = {
               ))}
             </div>
 
-<label
-  style={{
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    fontSize: 13,
-    color: '#6b7280'
-  }}
->
-  <input
-    type="checkbox"
-    checked={includePast}
-    onChange={(e) => setIncludePast(e.target.checked)}
-  />
-  Include past deadlines
-</label>
+
           </div>
 
           {/* Upcoming 4 Weeks */}
