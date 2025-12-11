@@ -803,7 +803,7 @@ if (src === 'personal' || src === 'canvas') {
                 {selected.category}
               </span>
             </div>
-            
+
 <div className="event-line">
   <span className="event-label">Date:</span>
   <span>{selected.dateText}</span>
@@ -910,14 +910,20 @@ if (src === 'personal' || src === 'canvas') {
             <label style={{ display: 'block', marginTop: 8 }}>
               Title
               <input
-                type="text"
-                value={form.title}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, title: e.target.value }))
-                }
-                required
-                style={{ width: '100%', padding: 8, marginTop: 4 }}
-              />
+  type="text"
+  value={form.title}
+  onChange={(e) =>
+    setForm((f) => ({ ...f, title: e.target.value }))
+  }
+  required
+  style={{
+    width: '100%',
+    padding: 6,
+    marginTop: 4,
+    boxSizing: 'border-box'
+  }}
+/>
+
             </label>
 
             <div
@@ -937,7 +943,13 @@ if (src === 'personal' || src === 'canvas') {
                     setForm((f) => ({ ...f, date: e.target.value }))
                   }
                   required
-                  style={{ width: '100%', padding: 8, marginTop: 4 }}
+                  style={{
+  width: '100%',
+  padding: 6,
+  marginTop: 4,
+  boxSizing: 'border-box'
+}}
+
                 />
               </label>
               <label>
@@ -948,7 +960,13 @@ if (src === 'personal' || src === 'canvas') {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, endDate: e.target.value }))
                   }
-                  style={{ width: '100%', padding: 8, marginTop: 4 }}
+                  style={{
+  width: '100%',
+  padding: 6,
+  marginTop: 4,
+  boxSizing: 'border-box'
+}}
+
                 />
               </label>
             </div>
@@ -968,7 +986,12 @@ if (src === 'personal' || src === 'canvas') {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, category: e.target.value }))
                   }
-                  style={{ width: '100%', padding: 8, marginTop: 4 }}
+                  style={{
+  width: '100%',
+  padding: 6,
+  marginTop: 4,
+  boxSizing: 'border-box'
+}}
                 >
                   <option value="personal">Personal</option>
                   <option value="registration">Registration</option>
@@ -982,14 +1005,20 @@ if (src === 'personal' || src === 'canvas') {
 
             <label style={{ display: 'block', marginTop: 8 }}>
               Notes
-              <textarea
-                rows={3}
-                value={form.notes}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, notes: e.target.value }))
-                }
-                style={{ width: '100%', padding: 8, marginTop: 4 }}
-              />
+<textarea
+  rows={3}
+  value={form.notes}
+  onChange={(e) =>
+    setForm((f) => ({ ...f, notes: e.target.value }))
+  }
+  style={{
+    width: '100%',
+    padding: 6,
+    marginTop: 4,
+    boxSizing: 'border-box'
+  }}
+/>
+
             </label>
 
             <div
