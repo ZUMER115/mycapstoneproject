@@ -26,7 +26,9 @@ const allowedOrigins = [
   'https://mycapstoneproject-kd1i.onrender.com',   // Render backend URL
   'http://localhost:3000',                         // local React dev
   'http://localhost:5173',                         // Vite (if used)
-  'https://mycapstoneproject-tbo9.vercel.app'
+  'https://mycapstoneproject-tbo9.vercel.app',
+  'https://kikoken.com',
+  'https://www.kikoken.com'
 ].filter(Boolean);
 
 // ✅ Apply CORS before any routes
