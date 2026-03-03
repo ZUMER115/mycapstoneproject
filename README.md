@@ -1,18 +1,42 @@
-## Getting Started
+Sparely 
 
-Welcome to the VS Code Java world. Here is a guideline to help you get started to write Java code in Visual Studio Code.
+Overview
+Sparely is a full-stack academic deadline platform designed to help university students track important academic dates, manage personalized deadlines, and plan graduation requirements.
+The system integrates user authentication, automated deadline scraping, PostgreSQL data persistence, and containerized deployment to provide a production-style web application experience.
 
-## Folder Structure
+Tech Stack
+a) Frontend
+    - React
+b) Backend
+    - Node.js
+    - Express
+c) Database
+    - PostgreSQL
+d) Infrastructure
+    - Docker/Docker Compose
+    - Web scraping w/Cheerio
+    - Authentication (JWT)
 
-The workspace contains two folders by default, where:
 
-- `src`: the folder to maintain sources
-- `lib`: the folder to maintain dependencies
+Architecture
 
-Meanwhile, the compiled output files will be generated in the `bin` folder by default.
+Client (React)
+↓
+Express API (Node.js)
+↓
+PostgreSQL
 
-> If you want to customize the folder structure, open `.vscode/settings.json` and update the related settings there.
+Deadline scraping service
+↓
+Database persistence
+↓
+User dashboard rendering
 
-## Dependency Management
 
-The `JAVA PROJECTS` view allows you to manage your dependencies. More details can be found [here](https://github.com/microsoft/vscode-java-dependency#manage-dependencies).
+Core Features
+- Secure user registration and login (JWT authentication)
+- Personalized academic dashboard
+- Automated scraping of university academic calendars
+- Deadline normalization and database storage
+- Graduation planning logic based on remaining requirements
+- Email notification support 
