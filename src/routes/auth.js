@@ -1,4 +1,6 @@
 // src/routes/auth.js
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const jwt = require('jsonwebtoken');
 const express = require('express');
 const router = express.Router();
 const {
@@ -31,31 +33,19 @@ router.put('/email', authMiddleware, updateEmail);
 router.post('/change-password', authMiddleware, changePassword);
 
 /* ---------- DEMO LOGIN (temporary) ---------- */
-router.post('/demo-login', async (_req, res) => {
-  try {
-    const demoEmail = 'demo@sparely.app';
-    const demoPass = 'demo123';
 
-    const existing = await query('SELECT * FROM users WHERE email=$1', [demoEmail]);
+router.post('/demo-login', (req, res) => {
+  const token = jwt.sign(
+    {
+      id: `demo-${Date.now()}`,
+      email: 'demo@sparely.app',
+      isDemo: true
+    },
+    JWT_SECRET,
+    { expiresIn: '2h' }
+  );
 
-    if (existing.rows.length === 0) {
-      const hash = await bcrypt.hash(demoPass, 10);
-      await query(
-        'INSERT INTO users (email, password_hash, is_verified) VALUES ($1, $2, TRUE)',
-        [demoEmail, hash]
-      );
-      console.log('✅ Demo user created in Postgres');
-    }
-
-    res.json({
-      email: demoEmail,
-      password: demoPass,
-      message: 'Demo account ready. You can log in using these credentials.'
-    });
-  } catch (err) {
-    console.error('❌ Demo login setup error:', err.message);
-    res.status(500).json({ message: 'Demo setup failed', error: err.message });
-  }
+  res.json({ token });
 });
 
 module.exports = router;

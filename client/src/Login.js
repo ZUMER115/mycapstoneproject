@@ -262,7 +262,49 @@ const Login = ({ onLogin }) => {
             <button type="submit" style={btn} disabled={status === 'loading'}>
               {status === 'loading' ? 'Signing in…' : 'Sign in'}
             </button>
+            {/* Divider */}
+<div style={{
+  display: 'flex',
+  alignItems: 'center',
+  margin: '6px 0'
+}}>
+  <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
+  <span style={{ margin: '0 10px', fontSize: 12, color: '#9ca3af' }}>
+    OR
+  </span>
+  <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
+</div>
 
+{/* Demo Mode Button */}
+<button
+  type="button"
+  style={{
+    width: '100%',
+    height: 46,
+    borderRadius: 999,
+    border: '1px solid #d1d5db',
+    background: '#111827',
+    color: '#ffffff',
+    fontWeight: 700,
+    fontSize: 14,
+    cursor: 'pointer'
+  }}
+  onClick={async () => {
+    try {
+      const base = process.env.REACT_APP_API_URL;
+      const res = await fetch(`${base}/api/auth/demo-login`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      onLogin(data.token);
+    } catch {
+      setMessage('Demo mode failed to start.');
+      setStatus('error');
+    }
+  }}
+>
+  Continue in Demo Mode
+</button>
             {message && (
               <div role="status" aria-live="polite" style={msg}>
                 {message}

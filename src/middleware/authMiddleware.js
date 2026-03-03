@@ -1,7 +1,7 @@
 // src/middleware/authMiddleware.js
 const jwt = require('jsonwebtoken');
-
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+
 
 function authMiddleware(req, res, next) {
   // Expecting: Authorization: Bearer <token>
@@ -16,7 +16,11 @@ function authMiddleware(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     // Attach user info to the request
-    req.user = { id: decoded.id, email: decoded.email };
+    req.user = { 
+      id: decoded.id, 
+      email: decoded.email,
+      isDemo: decoded.isDemo || false   // ✅ ADDED THIS LINE
+    };
     next();
   } catch (err) {
     console.error('[authMiddleware] JWT error:', err.message);
