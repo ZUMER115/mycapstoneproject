@@ -195,7 +195,7 @@ router.get('/deadlines', async (req, res) => {
     const userId = getUserIdFromRequest(req);
     let canvasEvents = [];
 
-    if (userId) {
+    if (userId && typeof userId === 'number') {
       const { rows } = await query(
         `
         SELECT id, title, start_date, course_code, url
